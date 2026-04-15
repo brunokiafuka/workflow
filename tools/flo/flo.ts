@@ -1,4 +1,5 @@
 #!/usr/bin/env -S tsx
+import inquirer from "inquirer";
 import {
   addCommand,
   checkoutCommand,
@@ -9,10 +10,12 @@ import {
   type ModifyOpts,
   pushCommand,
   restackCommand,
+  setupCommand,
   submitCommand,
   syncCommand,
 } from "./lib/commands/index.js";
-import { fail } from "./lib/ui.js";
+import { CONFIG_FILE, loadConfig } from "./lib/config.js";
+import { c, fail } from "./lib/ui.js";
 
 const HELP = `
 flo — your local git workflow helper
@@ -35,6 +38,8 @@ Usage:
     -a                    stage all changes first
     -c                    create a new commit instead of amending
     -e                    open editor for the amended message
+  flo setup               Configure .flo/config.json for this repo (trunk,
+                          branch template, user prefix). Per-dev — auto-ignored.
   flo push                Push current branch with --force-with-lease
                           (sets upstream on first push).
   flo submit              Push and open/update the PR for the current branch.
@@ -101,6 +106,36 @@ async function main() {
     return;
   }
 
+  // Ensure config is defined for the commands that need it (everything except
+  // setup and help). If it's missing, offer to run setup inline.
+  if (cmd !== "setup" && (await loadConfig()) === null) {
+    console.log(
+      c.dim(`  No ${c.b(CONFIG_FILE)} found for this repo.`),
+    );
+    if (process.stdout.isTTY) {
+      const { runSetup } = await inquirer.prompt<{ runSetup: boolean }>([
+        {
+          type: "confirm",
+          name: "runSetup",
+          message: "Run flo setup now?",
+          default: true,
+        },
+      ]);
+      if (runSetup) {
+        await setupCommand();
+        console.log("");
+      } else {
+        console.log(
+          c.dim(`  Carrying on with defaults. Run ${c.cyan("flo setup")} later when you're ready.`),
+        );
+      }
+    } else {
+      console.log(
+        c.dim(`  Run ${c.cyan("flo setup")} to configure it.`),
+      );
+    }
+  }
+
   switch (cmd) {
     case "sync":
       await syncCommand();
@@ -126,6 +161,9 @@ async function main() {
       break;
     case "push":
       await pushCommand();
+      break;
+    case "setup":
+      await setupCommand();
       break;
     case "submit":
       await submitCommand();

@@ -1,4 +1,5 @@
 import { execa } from "execa";
+import { loadConfig } from "./config.js";
 import { git, localBranches } from "./git.js";
 
 /**
@@ -21,8 +22,11 @@ export async function ghMergedHeads(): Promise<Set<string>> {
   }
 }
 
-/** Detect the trunk branch name (main/master/…) from origin/HEAD, with fallbacks. */
+/** Detect the trunk branch name. Prefers .flo/config.json, then origin/HEAD, then main/master. */
 export async function detectTrunk(): Promise<string> {
+  const cfg = await loadConfig();
+  if (cfg?.trunk) return cfg.trunk;
+
   const head = await git(["symbolic-ref", "refs/remotes/origin/HEAD"], {
     allowFail: true,
   });

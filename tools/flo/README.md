@@ -11,6 +11,7 @@
 
 ```bash
 flo --help              # list commands
+flo setup               # one-time per-dev config (.flo/config.json)
 flo sync                # update trunk, prune merged branches, restack
 flo checkout            # pick a branch from a graph view
 flo commit -a -m "msg"  # stage + commit (branches off trunk if needed)

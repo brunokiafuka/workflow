@@ -1,9 +1,10 @@
+import { renderBranchName, resolveConfig } from "./config.js";
 import { currentBranch, git } from "./git.js";
 import { detectTrunk } from "./trunk.js";
 import { c, fail, info, logCmd, promptInput } from "./ui.js";
 
-/** Turn a commit message into a safe branch-name suggestion. */
-export function suggestBranchName(message: string): string {
+/** Turn a commit message into a safe slug (lowercased, underscore-joined). */
+export function slugify(message: string): string {
   return message
     .trim()
     .toLowerCase()
@@ -16,6 +17,13 @@ export function suggestBranchName(message: string): string {
     .replace(/_+/g, "_")
     .replace(/^[_\-.]+|[_\-.]+$/g, "")
     .slice(0, 60);
+}
+
+/** Slug + apply the configured branch template (e.g. "{user}/{date}_{slug}"). */
+export async function suggestBranchName(message: string): Promise<string> {
+  const slug = slugify(message);
+  const cfg = await resolveConfig();
+  return renderBranchName(cfg, slug);
 }
 
 export async function isOnTrunk(): Promise<boolean> {

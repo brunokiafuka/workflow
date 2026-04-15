@@ -27,7 +27,7 @@ export async function commitCommand(opts: CommitOpts): Promise<void> {
 
   // If on trunk, branch off before committing (suggest name from message).
   if (await isOnTrunk()) {
-    await ensureOffTrunk(suggestBranchName(message));
+    await ensureOffTrunk(await suggestBranchName(message));
   }
 
   logCmd(["commit", "-m", message]);
