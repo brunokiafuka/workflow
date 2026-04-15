@@ -2,6 +2,7 @@
 
 `flo` is a local git workflow helper for stacked branches. It wraps the handful of git invocations you'd otherwise type a hundred times a day, with safer defaults and friendlier output.
 
+- [`flo setup`](#flo-setup) — configure `.flo/config.json` for this repo
 - [`flo sync`](#flo-sync) — fetch, prune merged branches, restack
 - [`flo checkout`](#flo-checkout) — pick a branch from a graph view
 - [`flo get`](#flo-get) — fetch + checkout a remote branch
@@ -11,6 +12,52 @@
 - [`flo modify`](#flo-modify) — amend (or create) a commit
 - [`flo push`](#flo-push) — push with `--force-with-lease`
 - [`flo submit`](#flo-submit) — push and open/update a draft PR
+
+---
+
+## `flo setup`
+
+Interactive setup: writes `.flo/config.json` in the repo root with your trunk branch, user prefix, and branch-naming template. The whole `.flo/` folder is **personal to each dev** — setup auto-adds it to `.gitignore` so it never gets committed. Every command reads this file when present; if it's missing, flo will offer to run setup inline before continuing (see [Auto-prompt on first use](#auto-prompt-on-first-use) below).
+
+**Config shape**
+
+```json
+{
+  "trunk": "main",
+  "branch": {
+    "template": "{user}/{slug}",
+    "user": "bk"
+  }
+}
+```
+
+**Template tokens**
+
+| Token    | What it expands to |
+| -------- | ------------------ |
+| `{user}` | `branch.user` from config (fallback: local part of `git config user.email`) |
+| `{slug}` | slugified commit message (lowercase, spaces → `_`, git-invalid chars stripped, 60 chars max) |
+
+**Presets offered by setup**
+
+- `{slug}` — plain
+- `{user}/{slug}` — user-prefixed (default)
+- custom — enter your own template
+
+The template is applied wherever flo suggests a branch name (currently: the trunk-guard prompt in `commit` and `modify`). Re-running `flo setup` prompts to overwrite the existing config. The `.flo/` folder is per-dev by convention — each teammate runs `flo setup` once after cloning.
+
+### Auto-prompt on first use
+
+Any command other than `setup` / `help` checks for `.flo/config.json` before running. If it's missing, flo asks inline:
+
+```
+  No .flo/config.json found for this repo.
+? Run flo setup now? (Y/n)
+```
+
+- **Yes** — runs setup, then continues with the original command
+- **No** — prints a polite reminder and continues with defaults
+- **Non-TTY** (CI, piped input) — skips the prompt, prints the reminder, continues
 
 ---
 
