@@ -1,7 +1,7 @@
 {
   "name": "workflow",
   "private": true,
-  "description": "Personal developer workflow tools. Each tool lives under tools/<name>.",
+  "description": "my personal workflow tools and scripts. Each tool lives under tools/<name>.",
   "scripts": {
     "install:flo": "bash tools/flo/install"
   },

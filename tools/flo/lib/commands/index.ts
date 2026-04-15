@@ -4,4 +4,5 @@ export { getCommand } from "./get.js";
 export { modifyCommand, type ModifyOpts } from "./modify.js";
 export { pushCommand } from "./push.js";
 export { restackCommand } from "./restack.js";
+export { submitCommand } from "./submit.js";
 export { syncCommand } from "./sync.js";

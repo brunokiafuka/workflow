@@ -8,6 +8,7 @@ import {
   type ModifyOpts,
   pushCommand,
   restackCommand,
+  submitCommand,
   syncCommand,
 } from "./lib/commands/index.js";
 import { fail } from "./lib/ui.js";
@@ -34,6 +35,9 @@ Usage:
     -e                    open editor for the amended message
   flo push                Push current branch with --force-with-lease
                           (sets upstream on first push).
+  flo submit              Push and open/update the PR for the current branch.
+                          Creates a draft PR (via gh pr create --draft --fill)
+                          if none exists yet.
   flo --help              Show this message.
 `;
 
@@ -116,6 +120,9 @@ async function main() {
       break;
     case "push":
       await pushCommand();
+      break;
+    case "submit":
+      await submitCommand();
       break;
     default:
       console.error(`I don't know the command "${cmd}".`);
