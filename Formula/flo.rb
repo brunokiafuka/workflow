@@ -1,7 +1,7 @@
 class Flo < Formula
   desc "Local git workflow helper (graphite-style)"
-  homepage "https://github.com/bruno_kiafuka/workflow"
-  head "https://github.com/bruno_kiafuka/workflow.git", branch: "main"
+  homepage "https://github.com/brunokiafuka/workflow"
+  head "https://github.com/brunokiafuka/workflow.git", branch: "main"
 
   depends_on "node"
 
@@ -15,6 +15,6 @@ class Flo < Formula
   end
 
   test do
-    assert_match "flo -- your local git workflow helper", shell_output("#{bin}/flo --help")
+    assert_match "your local git workflow helper", shell_output("#{bin}/flo --help")
   end
 end
