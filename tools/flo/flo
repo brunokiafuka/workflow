@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# flo — thin shim that execs the TypeScript CLI via tsx.
+# Symlink this into your PATH (e.g. `ln -s "$PWD/scripts/flo" ~/.local/bin/flo`)
+# or add `<repo>/scripts` to PATH directly.
+set -e
+
+# Resolve symlinks so $DIR is the real scripts/ dir, not the symlink location.
+SOURCE="${BASH_SOURCE[0]}"
+while [ -L "$SOURCE" ]; do
+  LINK_DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ $SOURCE != /* ]] && SOURCE="$LINK_DIR/$SOURCE"
+done
+DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
+
+exec "$DIR/node_modules/.bin/tsx" "$DIR/flo.ts" "$@"

@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# flo installer — symlinks scripts/flo into ~/.local/bin so you can run `flo`
+# from anywhere. Re-run any time to refresh the link.
+set -e
+
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TARGET="$HOME/.local/bin/flo"
+
+# 1. Make sure pnpm deps are present (tsx, execa, enquirer, chalk, cli-progress).
+if [ ! -x "$DIR/node_modules/.bin/tsx" ]; then
+  echo "Installing dependencies with pnpm…"
+  (cd "$DIR" && pnpm install)
+fi
+
+# 2. Ensure ~/.local/bin exists.
+mkdir -p "$HOME/.local/bin"
+
+# 3. Refresh the symlink (safe if it already points somewhere else).
+if [ -L "$TARGET" ] || [ -e "$TARGET" ]; then
+  rm -f "$TARGET"
+fi
+ln -s "$DIR/flo" "$TARGET"
+
+# 4. PATH check.
+case ":$PATH:" in
+  *":$HOME/.local/bin:"*) ;;
+  *)
+    echo ""
+    echo "⚠️  $HOME/.local/bin isn't on your PATH."
+    echo "    Add this to your ~/.zshrc (or ~/.bashrc):"
+    echo ""
+    echo "      export PATH=\"\$HOME/.local/bin:\$PATH\""
+    echo ""
+    ;;
+esac
+
+echo "✓ flo installed → $TARGET"
+echo "  Try: flo --help"

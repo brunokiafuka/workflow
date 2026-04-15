@@ -1,0 +1,72 @@
+import { git, localBranches } from "./git.js";
+
+/** Detect the trunk branch name (main/master/…) from origin/HEAD, with fallbacks. */
+export async function detectTrunk(): Promise<string> {
+  const head = await git(["symbolic-ref", "refs/remotes/origin/HEAD"], {
+    allowFail: true,
+  });
+  if (head.exitCode === 0) {
+    const name = head.stdout.trim().replace(/^refs\/remotes\/origin\//, "");
+    if (name) return name;
+  }
+  // Fallbacks: prefer main, then master, else first local branch.
+  const locals = await localBranches();
+  if (locals.includes("main")) return "main";
+  if (locals.includes("master")) return "master";
+  return locals[0] ?? "main";
+}
+
+/**
+ * Find local branches that can be safely offered for deletion:
+ *   1. Real merges into trunk (`git branch --merged`)
+ *   2. Squash-merges — detected via `git cherry` patch-equivalence
+ *   3. Upstream gone — remote tracking branch was pruned (fetch --prune),
+ *      which almost always means the PR was merged and the remote cleaned up.
+ */
+export async function findMergedBranches(trunk: string): Promise<string[]> {
+  const locals = (await localBranches()).filter((b) => b !== trunk);
+  const candidates: string[] = [];
+
+  // (1) Real merges — fast path.
+  const merged = await git(["branch", "--merged", trunk, "--format=%(refname:short)"]);
+  const mergedSet = new Set(
+    merged.stdout.split("\n").map((s) => s.trim()).filter((s) => s && s !== trunk),
+  );
+
+  // (3) Upstream-gone set: parse `upstream:track` per branch.
+  const goneSet = new Set<string>();
+  const tracking = await git(
+    [
+      "for-each-ref",
+      "--format=%(refname:short)%09%(upstream:track)",
+      "refs/heads/",
+    ],
+    { allowFail: true },
+  );
+  if (tracking.exitCode === 0) {
+    for (const line of tracking.stdout.split("\n")) {
+      const [name, track] = line.split("\t");
+      if (!name || name === trunk) continue;
+      if (track && track.includes("gone")) goneSet.add(name);
+    }
+  }
+
+  for (const branch of locals) {
+    if (mergedSet.has(branch) || goneSet.has(branch)) {
+      candidates.push(branch);
+      continue;
+    }
+    // (2) Squash-merge detection: `git cherry <trunk> <branch>` prints one
+    // line per commit on branch-not-in-trunk. "+" = genuinely missing;
+    // "-" = patch-equivalent (the typical squash-merge signature).
+    const cherry = await git(["cherry", trunk, branch], { allowFail: true });
+    if (cherry.exitCode !== 0) continue;
+    const lines = cherry.stdout.split("\n").map((s) => s.trim()).filter(Boolean);
+    if (lines.length === 0) continue;
+    if (lines.every((l) => l.startsWith("-"))) {
+      candidates.push(branch);
+    }
+  }
+
+  return Array.from(new Set(candidates));
+}

@@ -1,0 +1,9 @@
+{
+  "name": "workflow",
+  "private": true,
+  "description": "Personal developer workflow tools. Each tool lives under tools/<name>.",
+  "scripts": {
+    "install:flo": "bash tools/flo/install"
+  },
+  "packageManager": "pnpm@9.15.0"
+}
