@@ -1,5 +1,5 @@
 import { branchExists, currentBranch, git, gitFetch, hasUncommittedChanges, localBranches } from "../git.js";
-import { detectTrunk, findMergedBranches } from "../trunk.js";
+import { detectTrunk, findMergedBranches, ghMergedHeads } from "../trunk.js";
 import { c, fail, info, logCmd, multiSelect, success, warn } from "../ui.js";
 
 export async function syncCommand(): Promise<void> {
@@ -19,7 +19,27 @@ export async function syncCommand(): Promise<void> {
   const remoteSha = (await git(["rev-parse", `origin/${trunk}`], { allowFail: true }))
     .stdout.trim();
   const trunkUpToDate = localSha && remoteSha && localSha === remoteSha;
-  const mergedBranches = (await findMergedBranches(trunk)).filter((b) => b !== original);
+
+  // Merge git-based detection with GitHub's merged-PR list.
+  const gitMerged = await findMergedBranches(trunk);
+  const prMerged = await ghMergedHeads();
+  const locals = new Set(await localBranches());
+  const mergedSet = new Set<string>(gitMerged);
+  for (const head of prMerged) if (locals.has(head) && head !== trunk) mergedSet.add(head);
+
+  // If the user's current branch is merged, move to trunk before cleanup.
+  let currentBranchName = original;
+  if (mergedSet.has(original) && original !== trunk) {
+    info(`Your branch ${c.b(original)} was merged — switching to ${c.b(trunk)}.`);
+    logCmd(["checkout", trunk]);
+    const co = await git(["checkout", "--quiet", trunk], { allowFail: true });
+    if (co.exitCode !== 0) {
+      fail(`Couldn't switch to ${trunk}: ${co.stderr.trim()}`);
+    }
+    currentBranchName = trunk;
+  }
+
+  const mergedBranches = Array.from(mergedSet).filter((b) => b !== currentBranchName);
 
   if (trunkUpToDate && mergedBranches.length === 0) {
     success(`You're all caught up with origin/${trunk} ✨`);
