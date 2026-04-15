@@ -7,11 +7,13 @@ class Flo < Formula
 
   def install
     cd "tools/flo" do
-      system "npm", "install"
+      system "npm", "install", "--omit=dev", "--no-audit", "--no-fund", "--no-progress"
       libexec.install Dir["*"]
     end
 
-    (bin/"flo").write_env_script libexec/"flo"
+    # The flo shim resolves its own real path via readlink, so a plain
+    # symlink into bin is enough — libexec/flo → libexec/node_modules/... works.
+    bin.install_symlink libexec/"flo"
   end
 
   test do
