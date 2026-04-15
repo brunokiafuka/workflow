@@ -1,4 +1,5 @@
 import { git, gitInherit, hasUnstagedChanges } from "../git.js";
+import { ensureOffTrunk, isOnTrunk, suggestBranchName } from "../guards.js";
 import { detectTrunk } from "../trunk.js";
 import { confirm, fail, info, logCmd, promptInput, success } from "../ui.js";
 
@@ -39,6 +40,11 @@ export async function modifyCommand(opts: ModifyOpts): Promise<void> {
       if (!msg) fail("I need a message to commit.");
       opts.message = msg;
     }
+  }
+
+  // If we'd be committing onto trunk, branch off first (suggest from message).
+  if (opts.newCommit && (await isOnTrunk())) {
+    await ensureOffTrunk(opts.message ? suggestBranchName(opts.message) : undefined);
   }
 
   const args: string[] = ["commit"];
