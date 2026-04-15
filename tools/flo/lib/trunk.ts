@@ -1,4 +1,25 @@
+import { execa } from "execa";
 import { git, localBranches } from "./git.js";
+
+/**
+ * Ask GitHub which local branch names already have a merged PR.
+ * Returns an empty set when `gh` is missing, unauthenticated, or fails —
+ * this is purely additive to the git-based detection.
+ */
+export async function ghMergedHeads(): Promise<Set<string>> {
+  try {
+    const r = await execa(
+      "gh",
+      ["pr", "list", "--state", "merged", "--limit", "200", "--json", "headRefName"],
+      { reject: false },
+    );
+    if (r.exitCode !== 0) return new Set();
+    const data = JSON.parse(r.stdout) as { headRefName: string }[];
+    return new Set(data.map((d) => d.headRefName));
+  } catch {
+    return new Set();
+  }
+}
 
 /** Detect the trunk branch name (main/master/…) from origin/HEAD, with fallbacks. */
 export async function detectTrunk(): Promise<string> {
