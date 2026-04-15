@@ -1,6 +1,7 @@
 #!/usr/bin/env -S tsx
 import {
   addCommand,
+  checkoutCommand,
   commitCommand,
   type CommitOpts,
   getCommand,
@@ -22,6 +23,7 @@ Usage:
                           onto trunk. Aborts on conflict and suggests flo restack.
   flo get [branch]        Fetch and check out <branch> from origin, rebasing
                           only that one branch. Defaults to the current branch.
+  flo checkout            Pick a local branch from a graph view and switch to it.
   flo restack [branch]    Rebase the current (or named) branch onto trunk,
                           leaving conflicts open for you to resolve.
   flo add                 Stage all changes (git add -A).
@@ -105,6 +107,10 @@ async function main() {
       break;
     case "get":
       await getCommand(rest[0]);
+      break;
+    case "checkout":
+    case "co":
+      await checkoutCommand();
       break;
     case "add":
       await addCommand();

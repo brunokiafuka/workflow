@@ -34,6 +34,7 @@ Main commands:
 
 - `flo sync`: update trunk and restack local branches
 - `flo get [branch]`: fetch + checkout a remote branch
+- `flo checkout` (`flo co`): pick a local branch from a graph view
 - `flo restack [branch]`: rebase branch onto trunk
 - `flo add`: stage all tracked and untracked changes
 - `flo commit`: create a commit (`-m`, `-a`)
