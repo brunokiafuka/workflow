@@ -2,42 +2,17 @@
 
 `flo` is a local git workflow helper (Graphite-style) for stacked branches.
 
-## Install
+## Docs
 
-### Homebrew (no manual repo clone)
+- **[Installation & releases](../../docs/flo/installation.md)** — Homebrew install, local dev install, release flow
+- **[Command reference](../../docs/flo/commands.md)** — every command, flags, and behavior notes
 
-If this repository is configured as a Homebrew tap, you can install with:
-
-```bash
-brew tap bruno_kiafuka/workflow https://github.com/bruno_kiafuka/workflow
-brew install --HEAD flo
-```
-
-### Local repo install
-
-From the repository root:
+## Quickstart
 
 ```bash
-pnpm install
-pnpm run install:flo
+flo --help              # list commands
+flo sync                # update trunk, prune merged branches, restack
+flo checkout            # pick a branch from a graph view
+flo commit -a -m "msg"  # stage + commit (branches off trunk if needed)
+flo submit              # push + open/update a draft PR
 ```
-
-This creates `~/.local/bin/flo` as a symlink to `tools/flo/flo`.
-
-## Usage
-
-```bash
-flo --help
-```
-
-Main commands:
-
-- `flo sync`: update trunk and restack local branches
-- `flo get [branch]`: fetch + checkout a remote branch
-- `flo checkout` (`flo co`): pick a local branch from a graph view
-- `flo restack [branch]`: rebase branch onto trunk
-- `flo add`: stage all tracked and untracked changes
-- `flo commit`: create a commit (`-m`, `-a`)
-- `flo modify`: amend or create (`-m`, `-a`, `-c`, `-e`)
-- `flo push`: push with `--force-with-lease`
-- `flo submit`: push and open/update a draft PR (requires [`gh`](https://cli.github.com/))
