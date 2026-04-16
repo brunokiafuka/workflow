@@ -5,6 +5,7 @@ import {
   checkoutCommand,
   commitCommand,
   type CommitOpts,
+  diffCommand,
   getCommand,
   modifyCommand,
   type ModifyOpts,
@@ -29,6 +30,9 @@ Usage:
   flo checkout            Pick a local branch from a graph view and switch to it.
   flo restack [branch]    Rebase the current (or named) branch onto trunk,
                           leaving conflicts open for you to resolve.
+  flo diff [flags]        Show what this branch changes vs trunk.
+                          --copy / -c copies diff to clipboard.
+                          Pass extra git flags like --stat or --name-only.
   flo add                 Stage all changes (git add -A).
   flo commit [flags]      Create a new commit on the current branch.
     -m <msg>              commit message (asks if omitted)
@@ -149,6 +153,9 @@ async function main() {
       break;
     case "add":
       await addCommand();
+      break;
+    case "diff":
+      await diffCommand(rest);
       break;
     case "commit":
       await commitCommand(parseCommit(rest));
