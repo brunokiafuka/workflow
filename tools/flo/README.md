@@ -2,6 +2,9 @@
 
 `flo` is a local git workflow helper (Graphite-style) for stacked branches.
 
+https://github.com/user-attachments/assets/6df2fbfa-568d-489e-a2a3-5156945488a5
+
+
 ## Docs
 
 - **[Installation & releases](../../docs/flo/installation.md)** — Homebrew install, local dev install, release flow
