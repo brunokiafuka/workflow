@@ -12,6 +12,8 @@
 - [`flo modify`](#flo-modify) — amend (or create) a commit
 - [`flo push`](#flo-push) — push with `--force-with-lease`
 - [`flo submit`](#flo-submit) — push and open/update a draft PR
+- [`flo run`](#flo-run) — run a project command defined in `flo.yml`
+- [`flo init`](#flo-init) — run the bootstrap steps in `flo.yml`
 
 ---
 
@@ -213,3 +215,74 @@ add_branching  (new)
 
 ✓ add_branching: https://github.com/org/repo/pull/3  (new)
 ```
+
+---
+
+## `flo run <name> [args]`
+
+Runs a project command defined in **`flo.yml`** at the repo root. Output streams live inside a bordered panel with a status footer (exit code + duration).
+
+For the full `flo.yml` schema (fields, aliases, validation errors, patterns) see **[Per-project customization](./customization.md)**.
+
+**Invocation**
+
+```
+flo run test         # by name
+flo run t            # by alias
+flo test             # top-level shortcut (only when "test" isn't a built-in)
+flo t                # alias at top level
+```
+
+Built-ins always win at the top level — define a recipe called `commit` and you'll still need `flo run commit` to reach it. Extra args after the recipe name are appended to the resolved command with shell-safe quoting.
+
+**Output**
+
+```
+  ▶ test  pnpm --filter flo test
+  │
+  │ ... streamed stdout/stderr, line by line ...
+  │
+  ✓ done in 756ms
+```
+
+Non-zero exit shows a red `✗` footer with the exit code, and `flo` exits with the same code.
+
+`flo run` does not require `flo setup` — recipes are independent of trunk/user config.
+
+---
+
+## `flo init`
+
+Runs the `init:` steps in `flo.yml` in declared order. Designed for post-clone bootstrap — install deps, run migrations, seed data.
+
+For the `init:` schema (step shape, required/optional fields, validation errors) see **[Per-project customization → `init`](./customization.md#init)**.
+
+**Behavior**
+
+- Sequential. Stops on the first non-zero exit — later steps don't run.
+- No completion tracking. Safe to re-run — make your steps idempotent.
+- Exits with the failing step's exit code.
+
+**Output**
+
+```
+  ▶ init  2 steps
+  │
+  │ [1/2] Install dependencies
+  │ $ pnpm install
+  │
+  │ ... streamed output ...
+  │
+  │ ✓ Install dependencies — 641ms
+  │
+  │ [2/2] Run migrations
+  │ $ pnpm db:migrate
+  │
+  │ ... streamed output ...
+  │
+  │ ✓ Run migrations — 312ms
+  │
+  ✓ init done in 953ms (2/2 steps)
+```
+
+On failure: `✗ <step> failed in Xs (exit N) — stopping` followed by `N/M steps completed before failure`.

@@ -7,15 +7,18 @@ import {
   type CommitOpts,
   diffCommand,
   getCommand,
+  initCommand,
   modifyCommand,
   type ModifyOpts,
   pushCommand,
   restackCommand,
+  runCommand,
   setupCommand,
   submitCommand,
   syncCommand,
 } from "./lib/commands/index.js";
 import { configLabel, loadConfig } from "./lib/config.js";
+import { listRecipeNames, loadRecipes, resolveRecipe } from "./lib/recipes.js";
 import { c, fail } from "./lib/ui.js";
 
 const HELP = `
@@ -50,8 +53,32 @@ Usage:
   flo submit              Push and open/update the PR for the current branch.
                           Creates a draft PR (via gh pr create --draft --fill)
                           if none exists yet.
+  flo run <name> [args]   Run a project command defined in flo.yml at the repo
+                          root. Output is boxed with a status footer. You can
+                          also invoke recipes directly: "flo test" is short for
+                          "flo run test" when no built-in named "test" exists.
+  flo init                Run the init: steps in flo.yml in order (install deps,
+                          run migrations, seed data, etc). Stops on first
+                          failure. Safe to re-run — make your steps idempotent.
   flo --help              Show this message.
 `;
+
+const BUILTIN_COMMANDS = new Set([
+  "sync",
+  "get",
+  "checkout",
+  "co",
+  "add",
+  "diff",
+  "commit",
+  "restack",
+  "modify",
+  "push",
+  "setup",
+  "submit",
+  "run",
+  "init",
+]);
 
 function parseCommit(argv: string[]): CommitOpts {
   const opts: CommitOpts = {};
@@ -111,9 +138,27 @@ async function main() {
     return;
   }
 
-  // Ensure config is defined for the commands that need it (everything except
-  // setup and help). If it's missing, offer to run setup inline.
-  if (cmd !== "setup" && (await loadConfig()) === null) {
+  // Top-level recipe dispatch: `flo <name>` routes to `flo run <name>` when
+  // <name> isn't a built-in and matches a recipe in flo.yml.
+  if (!BUILTIN_COMMANDS.has(cmd)) {
+    const recipes = await loadRecipes();
+    const recipe = recipes ? resolveRecipe(recipes, cmd) : null;
+    if (recipe) {
+      await runCommand(recipe.name, rest);
+      return;
+    }
+    console.error(`I don't know the command "${cmd}".`);
+    if (recipes && Object.keys(recipes.commands).length > 0) {
+      console.error("");
+      console.error(`Recipes in flo.yml: ${listRecipeNames(recipes).join(", ")}`);
+    }
+    console.error(HELP);
+    process.exit(1);
+  }
+
+  // Commands that don't need flo config — skip the setup prompt entirely.
+  const NO_CONFIG_NEEDED = new Set(["setup", "run", "init"]);
+  if (!NO_CONFIG_NEEDED.has(cmd) && (await loadConfig()) === null) {
     console.log(
       c.dim(`  No flo config found for this repo (expected at ${c.b(await configLabel())}).`),
     );
@@ -175,6 +220,12 @@ async function main() {
       break;
     case "submit":
       await submitCommand();
+      break;
+    case "run":
+      await runCommand(rest[0], rest.slice(1));
+      break;
+    case "init":
+      await initCommand();
       break;
     default:
       console.error(`I don't know the command "${cmd}".`);
