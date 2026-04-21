@@ -1,0 +1,12 @@
+project: "Workflow"
+
+init:
+  - install-dependencies:
+      name: Install dependencies
+      run: pnpm install
+
+commands:
+  test:
+    description: Run the test suite
+    command: pnpm --filter flo test
+    aliases: [t]

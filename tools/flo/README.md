@@ -6,6 +6,7 @@
 
 - **[Installation & releases](../../docs/flo/installation.md)** — Homebrew install, local dev install, release flow
 - **[Command reference](../../docs/flo/commands.md)** — every command, flags, and behavior notes
+- **[Per-project customization](../../docs/flo/customization.md)** — the `flo.yml` schema: recipes, init steps, patterns
 
 ## Quickstart
 
