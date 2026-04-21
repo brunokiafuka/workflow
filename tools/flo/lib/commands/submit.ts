@@ -1,5 +1,6 @@
 import { cliui } from "@poppinss/cliui";
 import { execa } from "execa";
+import { resolveConfig } from "../config.js";
 import { currentBranch, git, upstreamOf } from "../git.js";
 import { colors, fail, success, warn } from "../ui.js";
 import { pushCurrentBranch, type PushResult } from "./push.js";
@@ -48,6 +49,7 @@ export async function submitCommand(): Promise<void> {
 
   const existing = await lookupPr(branch);
   const upstream = await upstreamOf(branch);
+  const { prMode } = await resolveConfig();
 
   let status: PrStatus;
   if (!existing) {
@@ -79,14 +81,19 @@ export async function submitCommand(): Promise<void> {
   }
 
   if (!existing) {
-    tm.add("Opening draft PR", async (task) => {
-      const r = await execa("gh", ["pr", "create", "--draft", "--fill"], { reject: false });
+    const isDraft = prMode === "draft";
+    const label = isDraft ? "Opening draft PR" : "Opening PR";
+    const ghArgs = isDraft
+      ? ["pr", "create", "--draft", "--fill"]
+      : ["pr", "create", "--fill"];
+    tm.add(label, async (task) => {
+      const r = await execa("gh", ghArgs, { reject: false });
       if (r.exitCode !== 0) {
         return task.error(r.stderr?.trim().split("\n").pop() ?? "gh pr create failed");
       }
       const match = r.stdout.match(/https?:\/\/\S+/);
       prUrl = match ? match[0] : (await lookupPr(branch))?.url ?? "";
-      return "draft created";
+      return isDraft ? "draft created" : "created";
     });
   } else if (status === "update") {
     tm.add("Updating PR", async () => "refreshed");

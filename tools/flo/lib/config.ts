@@ -9,11 +9,16 @@ const LEGACY_DIR = ".flo";
 const LEGACY_JSON_FILENAME = "config.json";
 const LEGACY_FLAT_FILE = ".flo.json";
 
+export type PrMode = "draft" | "open";
+
 export type FloConfig = {
   trunk?: string;
   branch?: {
     template?: string;
     user?: string;
+  };
+  pr?: {
+    mode?: PrMode;
   };
 };
 
@@ -21,9 +26,12 @@ export type ResolvedConfig = {
   trunk: string | null; // null = fall back to auto-detect
   template: string;
   user: string;
+  prMode: PrMode;
   hasConfigFile: boolean;
   configPath: string;
 };
+
+export const DEFAULT_PR_MODE: PrMode = "draft";
 
 /** Display a filesystem path with $HOME collapsed to `~` for readability. */
 export function displayPath(abs: string): string {
@@ -142,6 +150,7 @@ export async function resolveConfig(): Promise<ResolvedConfig> {
     trunk: cfg?.trunk ?? null,
     template: cfg?.branch?.template ?? "{slug}",
     user: fallbackUser,
+    prMode: cfg?.pr?.mode ?? DEFAULT_PR_MODE,
     hasConfigFile: cfg !== null,
     configPath: sourcePath,
   };
