@@ -1,6 +1,9 @@
+import { cliui } from "@poppinss/cliui";
 import { execa } from "execa";
 import { currentBranch, upstreamOf } from "../git.js";
-import { fail, logCmd, success, warn } from "../ui.js";
+import { fail, success, warn } from "../ui.js";
+
+const ui = cliui();
 
 export type PushResult = {
   exitCode: number;
@@ -30,21 +33,36 @@ export async function pushCurrentBranch(): Promise<{ branch: string; result: Pus
 }
 
 export async function pushCommand(): Promise<void> {
-  const args = (await upstreamOf(await currentBranch())) ? ["push", "--force-with-lease"] : ["push", "-u", "origin", "HEAD"];
-  logCmd(args);
-  const { branch, result } = await pushCurrentBranch();
-  process.stdout.write(result.stdout);
-  process.stderr.write(result.stderr);
-  if (result.exitCode === 0) {
-    if (result.firstPush) {
-      success(`🚀 Pushed ${branch} and set it tracking origin/${branch}`);
-    } else {
-      success("🚀 Pushed");
+  let result: PushResult | null = null;
+  let branchName = "";
+
+  await ui
+    .tasks()
+    .add("Pushing", async (task) => {
+      const { branch, result: r } = await pushCurrentBranch();
+      branchName = branch;
+      result = r;
+      task.update(r.firstPush ? `git push -u origin HEAD (${branch})` : `git push --force-with-lease (${branch})`);
+      if (r.exitCode !== 0) {
+        return task.error(r.stderr.trim().split("\n").pop() ?? "push failed");
+      }
+      return r.firstPush ? "set upstream to origin" : "up to date";
+    })
+    .run();
+
+  if (!result || (result as PushResult).exitCode !== 0) {
+    const stderr = result ? (result as PushResult).stderr : "";
+    if (stderr && /stale info|rejected|non-fast-forward|force-with-lease/i.test(stderr)) {
+      warn("Remote has moved on since your last fetch. Run `flo sync` first, then try again.");
+    } else if (stderr.trim()) {
+      process.stderr.write(`${stderr}\n`);
     }
-    return;
+    process.exit((result as PushResult | null)?.exitCode || 1);
   }
-  if (/stale info|rejected|non-fast-forward|force-with-lease/i.test(result.stderr)) {
-    warn("Remote has moved on since your last fetch. Run `flo sync` first, then try again.");
-  }
-  process.exit(result.exitCode || 1);
+
+  success(
+    (result as PushResult).firstPush
+      ? `🚀 Pushed ${branchName} and set it tracking origin/${branchName}`
+      : `🚀 Pushed ${branchName}`,
+  );
 }

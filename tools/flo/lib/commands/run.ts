@@ -1,15 +1,10 @@
 import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
+import { cliui } from "@poppinss/cliui";
 import { listRecipeNames, loadRecipes, resolveRecipe } from "../recipes.js";
-import { c, fail } from "../ui.js";
+import { colors, fail } from "../ui.js";
 
-function formatDuration(ms: number): string {
-  if (ms < 1000) return `${ms}ms`;
-  if (ms < 60_000) return `${(ms / 1000).toFixed(1)}s`;
-  const mins = Math.floor(ms / 60_000);
-  const secs = Math.round((ms % 60_000) / 1000);
-  return `${mins}m${secs.toString().padStart(2, "0")}s`;
-}
+const ui = cliui();
 
 function shellQuote(arg: string): string {
   if (arg === "") return "''";
@@ -26,7 +21,7 @@ export async function runCommand(
   const file = await loadRecipes();
   if (!file) {
     fail(
-      `No ${c.b("flo.yml")} in this repo. Define commands there to use ${c.cyan("flo run")}.`,
+      `No ${colors.bold("flo.yml")} in this repo. Define commands there to use ${colors.cyan("flo run")}.`,
     );
   }
 
@@ -34,49 +29,51 @@ export async function runCommand(
   if (!recipe) {
     const names = listRecipeNames(file);
     const list = names.length
-      ? names.map((n) => `    ${c.cyan(n)}`).join("\n")
-      : `    ${c.dim("(none defined)")}`;
-    fail(`No recipe "${nameOrAlias}" in ${c.b("flo.yml")}.\n\n  Available:\n${list}`);
+      ? names.map((n) => `    ${colors.cyan(n)}`).join("\n")
+      : `    ${colors.dim("(none defined)")}`;
+    fail(`No recipe "${nameOrAlias}" in ${colors.bold("flo.yml")}.\n\n  Available:\n${list}`);
   }
 
   const extras = extraArgs.length ? ` ${extraArgs.map(shellQuote).join(" ")}` : "";
   const full = `${recipe.command}${extras}`;
 
-  const bar = c.dim("│");
-  const started = Date.now();
+  const buffer: string[] = [];
+  let exitCode = 0;
 
-  console.log("");
-  console.log(`  ${c.cyan("▶")} ${c.b(recipe.name)}  ${c.dim(full)}`);
-  console.log(`  ${bar}`);
+  await ui
+    .tasks()
+    .add(`${recipe.name}  ${colors.dim(full)}`, async (task) => {
+      const child = spawn(full, {
+        shell: true,
+        stdio: ["inherit", "pipe", "pipe"],
+        env: { ...process.env, FORCE_COLOR: process.env.FORCE_COLOR ?? "1" },
+      });
 
-  const child = spawn(full, {
-    shell: true,
-    stdio: ["inherit", "pipe", "pipe"],
-    env: { ...process.env, FORCE_COLOR: process.env.FORCE_COLOR ?? "1" },
-  });
+      // Buffer subprocess output silently; the spinner stays on the task title.
+      // Raw output isn't meaningful progress (per cliui docs, task.update is for
+      // semantic messages you emit), and piping it here just flickers through
+      // pnpm/tsx boilerplate.
+      const pipe = (stream: NodeJS.ReadableStream) => {
+        const rl = createInterface({ input: stream });
+        rl.on("line", (line) => buffer.push(line));
+      };
+      if (child.stdout) pipe(child.stdout);
+      if (child.stderr) pipe(child.stderr);
 
-  const pipe = (stream: NodeJS.ReadableStream) => {
-    const rl = createInterface({ input: stream });
-    rl.on("line", (line) => {
-      console.log(`  ${bar} ${line}`);
-    });
-  };
-  if (child.stdout) pipe(child.stdout);
-  if (child.stderr) pipe(child.stderr);
+      exitCode = await new Promise<number>((resolve) => {
+        child.on("close", (c) => resolve(c ?? 0));
+        child.on("error", () => resolve(1));
+      });
 
-  const code: number = await new Promise((resolve) => {
-    child.on("close", (c) => resolve(c ?? 0));
-    child.on("error", () => resolve(1));
-  });
+      if (exitCode !== 0) return task.error(`exit ${exitCode}`);
+      return "done";
+    })
+    .run();
 
-  const duration = formatDuration(Date.now() - started);
-  console.log(`  ${bar}`);
-  if (code === 0) {
-    console.log(`  ${c.ok("✓")} ${c.dim(`done in ${duration}`)}`);
-  } else {
-    console.log(`  ${c.err("✗")} ${c.dim(`failed in ${duration} (exit ${code})`)}`);
+  if (exitCode !== 0) {
+    console.error("");
+    for (const line of buffer) console.error(`  ${colors.dim("│")} ${line}`);
+    console.error("");
+    process.exit(exitCode);
   }
-  console.log("");
-
-  if (code !== 0) process.exit(code);
 }

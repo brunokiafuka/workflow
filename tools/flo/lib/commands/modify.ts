@@ -1,7 +1,10 @@
+import { cliui } from "@poppinss/cliui";
 import { git, gitInherit, hasUnstagedChanges } from "../git.js";
 import { ensureOffTrunk, isOnTrunk, suggestBranchName } from "../guards.js";
 import { detectTrunk } from "../trunk.js";
-import { confirm, fail, info, logCmd, promptInput, success } from "../ui.js";
+import { colors, confirm, fail, info, promptInput, success } from "../ui.js";
+
+const ui = cliui();
 
 export type ModifyOpts = {
   message?: string;
@@ -22,12 +25,6 @@ export async function modifyCommand(opts: ModifyOpts): Promise<void> {
   if (!opts.all && (await hasUnstagedChanges())) {
     const yes = await confirm("You have unstaged changes. Stage them all?", true);
     if (yes) opts.all = true;
-  }
-
-  if (opts.all) {
-    logCmd(["add", "-A"]);
-    const add = await git(["add", "-A"]);
-    if (add.exitCode !== 0) fail(`Couldn't stage changes: ${add.stderr}`);
   }
 
   // Guard against amending the base/trunk commit — if this branch has no
@@ -54,8 +51,57 @@ export async function modifyCommand(opts: ModifyOpts): Promise<void> {
     /* default editor */
   } else if (!opts.newCommit) args.push("--no-edit");
 
-  logCmd(args);
-  const code = await gitInherit(args);
-  if (code !== 0) fail("Commit didn't go through.");
+  // `-e` amend needs a real editor — capture the staging task, then hand off
+  // to inherited stdio for the editor session.
+  if (opts.edit && !opts.message && !opts.newCommit) {
+    if (opts.all) {
+      await ui
+        .tasks()
+        .add("Staging all changes", async (task) => {
+          task.update("git add -A");
+          const r = await git(["add", "-A"], { allowFail: true });
+          if (r.exitCode !== 0) return task.error(r.stderr.trim() || "git add failed");
+          return "staged";
+        })
+        .run();
+    }
+    const code = await gitInherit(args);
+    if (code !== 0) fail("Commit didn't go through.");
+    success("Branch updated");
+    return;
+  }
+
+  const tm = ui.tasks();
+  let commitOutput = "";
+
+  if (opts.all) {
+    tm.add("Staging all changes", async (task) => {
+      task.update("git add -A");
+      const r = await git(["add", "-A"], { allowFail: true });
+      if (r.exitCode !== 0) return task.error(r.stderr.trim() || "git add failed");
+      return "staged";
+    });
+  }
+
+  tm.add(opts.newCommit ? "Committing" : "Amending", async (task) => {
+    task.update(`git ${args.join(" ")}`);
+    const r = await git(args, { allowFail: true });
+    commitOutput = [r.stdout, r.stderr].filter(Boolean).join("\n");
+    if (r.exitCode !== 0) return task.error("commit didn't go through");
+    return opts.newCommit ? "committed" : "amended";
+  });
+
+  await tm.run();
+
+  if (tm.getState() === "failed") {
+    if (commitOutput.trim()) {
+      console.error("");
+      for (const line of commitOutput.split("\n")) {
+        if (line.trim()) console.error(`  ${colors.dim("│")} ${line}`);
+      }
+      console.error("");
+    }
+    process.exit(1);
+  }
   success(opts.newCommit ? "New commit created" : "Branch updated");
 }
