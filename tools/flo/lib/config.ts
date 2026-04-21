@@ -1,9 +1,13 @@
 import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
+import { homedir } from "node:os";
 import { join } from "node:path";
+import YAML from "yaml";
 import { git } from "./git.js";
+import { resolveSlot, type SlotInfo } from "./slot.js";
 
-const GITIGNORE = ".gitignore";
-const LEGACY_FILE = ".flo.json";
+const LEGACY_DIR = ".flo";
+const LEGACY_JSON_FILENAME = "config.json";
+const LEGACY_FLAT_FILE = ".flo.json";
 
 export type FloConfig = {
   trunk?: string;
@@ -21,85 +25,103 @@ export type ResolvedConfig = {
   configPath: string;
 };
 
-export const CONFIG_DIR = ".flo";
-export const CONFIG_FILENAME = "config.json";
-/** Human-facing label for the config location. */
-export const CONFIG_FILE = `${CONFIG_DIR}/${CONFIG_FILENAME}`;
-
-/** Repo root = the directory containing .git. */
-async function repoRoot(): Promise<string> {
-  const r = await git(["rev-parse", "--show-toplevel"]);
-  return r.stdout.trim();
-}
-
-export async function configPath(): Promise<string> {
-  return join(await repoRoot(), CONFIG_DIR, CONFIG_FILENAME);
-}
-
-async function legacyPath(): Promise<string> {
-  return join(await repoRoot(), LEGACY_FILE);
-}
-
-export async function loadConfig(): Promise<FloConfig | null> {
-  const path = await configPath();
-  try {
-    const raw = await readFile(path, "utf8");
-    return JSON.parse(raw) as FloConfig;
-  } catch (e) {
-    if ((e as NodeJS.ErrnoException).code !== "ENOENT") {
-      throw new Error(`Couldn't read ${CONFIG_FILE}: ${(e as Error).message}`);
-    }
+/** Display a filesystem path with $HOME collapsed to `~` for readability. */
+export function displayPath(abs: string): string {
+  const home = homedir();
+  if (home && (abs === home || abs.startsWith(`${home}/`))) {
+    return `~${abs.slice(home.length)}`;
   }
-  // Backward compatibility: fall back to the old flat file.
+  return abs;
+}
+
+/** Where *new* config writes will land, formatted for display. */
+export async function configLabel(): Promise<string> {
+  const slot = await resolveSlot();
+  return displayPath(slot.configPath);
+}
+
+async function repoRoot(): Promise<string> {
+  return (await git(["rev-parse", "--show-toplevel"])).stdout.trim();
+}
+
+async function readIfExists(path: string): Promise<string | null> {
   try {
-    const raw = await readFile(await legacyPath(), "utf8");
-    return JSON.parse(raw) as FloConfig;
+    return await readFile(path, "utf8");
   } catch (e) {
     if ((e as NodeJS.ErrnoException).code === "ENOENT") return null;
-    throw new Error(`Couldn't read ${LEGACY_FILE}: ${(e as Error).message}`);
+    throw e;
   }
 }
 
-export async function saveConfig(cfg: FloConfig): Promise<string> {
-  const root = await repoRoot();
-  await mkdir(join(root, CONFIG_DIR), { recursive: true });
-  const path = await configPath();
-  await writeFile(path, `${JSON.stringify(cfg, null, 2)}\n`, "utf8");
-  // Best-effort: remove the old flat-file so it doesn't shadow the new location.
+async function loadSlotConfig(slot: SlotInfo): Promise<FloConfig | null> {
+  const raw = await readIfExists(slot.configPath);
+  if (raw === null) return null;
   try {
-    await unlink(await legacyPath());
-  } catch {
-    /* ignore — usually just ENOENT */
+    const parsed = YAML.parse(raw);
+    return (parsed ?? {}) as FloConfig;
+  } catch (e) {
+    throw new Error(
+      `Couldn't parse ${displayPath(slot.configPath)}: ${(e as Error).message}`,
+    );
   }
-  return path;
+}
+
+type LegacyHit = { cfg: FloConfig; path: string };
+
+async function loadLegacyConfig(): Promise<LegacyHit | null> {
+  const root = await repoRoot();
+  const candidates = [
+    join(root, LEGACY_DIR, LEGACY_JSON_FILENAME),
+    join(root, LEGACY_FLAT_FILE),
+  ];
+  for (const path of candidates) {
+    const raw = await readIfExists(path);
+    if (raw === null) continue;
+    try {
+      return { cfg: JSON.parse(raw) as FloConfig, path };
+    } catch (e) {
+      throw new Error(`Couldn't parse ${displayPath(path)}: ${(e as Error).message}`);
+    }
+  }
+  return null;
 }
 
 /**
- * Make sure the `.flo/` folder is in the repo's `.gitignore`. Returns true if
- * we added the entry, false if it was already present. Silently skips on errors.
+ * Load config, preferring the user-level slot. Legacy `.flo/config.json`
+ * and `.flo.json` remain readable as a fallback during the deprecation window.
+ */
+export async function loadConfig(): Promise<FloConfig | null> {
+  const slot = await resolveSlot();
+  const slotCfg = await loadSlotConfig(slot);
+  if (slotCfg) return slotCfg;
+  const legacy = await loadLegacyConfig();
+  return legacy?.cfg ?? null;
+}
+
+/** Write config as YAML into the user-level slot. Returns the written path. */
+export async function saveConfig(cfg: FloConfig): Promise<string> {
+  const slot = await resolveSlot();
+  await mkdir(slot.projectDir, { recursive: true });
+  const body = YAML.stringify(cfg, { indent: 2 });
+  await writeFile(slot.configPath, body, "utf8");
+  // Best-effort: clean up the legacy flat file so it can't shadow new writes.
+  // We deliberately leave `.flo/config.json` in place; a future --migrate
+  // flow will handle that case with user confirmation.
+  try {
+    await unlink(join(await repoRoot(), LEGACY_FLAT_FILE));
+  } catch {
+    /* ENOENT expected */
+  }
+  return slot.configPath;
+}
+
+/**
+ * Historical no-op. User-level slots live outside the repo, so nothing needs
+ * to be added to `.gitignore`. Kept for call-site compatibility; returns false
+ * to signal that no change was made.
  */
 export async function ensureGitignored(): Promise<boolean> {
-  const root = await repoRoot();
-  const gi = join(root, GITIGNORE);
-  try {
-    let body = "";
-    try {
-      body = await readFile(gi, "utf8");
-    } catch (e) {
-      if ((e as NodeJS.ErrnoException).code !== "ENOENT") throw e;
-    }
-    // Accept any variant of the directory ignore pattern.
-    const lines = body.split(/\r?\n/).map((l) => l.trim());
-    const variants = new Set([CONFIG_DIR, `${CONFIG_DIR}/`, `/${CONFIG_DIR}`, `/${CONFIG_DIR}/`]);
-    if (lines.some((l) => variants.has(l))) return false;
-
-    const needsNewline = body.length > 0 && !body.endsWith("\n");
-    const addition = `${needsNewline ? "\n" : ""}# flo — per-dev config\n${CONFIG_DIR}/\n`;
-    await writeFile(gi, body + addition, "utf8");
-    return true;
-  } catch {
-    return false;
-  }
+  return false;
 }
 
 async function gitUserShort(): Promise<string> {
@@ -110,15 +132,18 @@ async function gitUserShort(): Promise<string> {
 }
 
 export async function resolveConfig(): Promise<ResolvedConfig> {
-  const cfg = await loadConfig();
-  const path = await configPath();
+  const slot = await resolveSlot();
+  const slotCfg = await loadSlotConfig(slot);
+  const legacy = slotCfg ? null : await loadLegacyConfig();
+  const cfg = slotCfg ?? legacy?.cfg ?? null;
+  const sourcePath = slotCfg ? slot.configPath : legacy?.path ?? slot.configPath;
   const fallbackUser = cfg?.branch?.user ?? (await gitUserShort());
   return {
     trunk: cfg?.trunk ?? null,
     template: cfg?.branch?.template ?? "{slug}",
     user: fallbackUser,
     hasConfigFile: cfg !== null,
-    configPath: path,
+    configPath: sourcePath,
   };
 }
 
@@ -127,7 +152,6 @@ export function renderBranchName(cfg: ResolvedConfig, slug: string): string {
   const rendered = cfg.template
     .replace(/\{user\}/g, cfg.user)
     .replace(/\{slug\}/g, slug)
-    // tidy: collapse empty "//", "__", and leading/trailing separators
     .replace(/\/+/g, "/")
     .replace(/_+/g, "_")
     .replace(/^[_\-/.]+|[_\-/.]+$/g, "");

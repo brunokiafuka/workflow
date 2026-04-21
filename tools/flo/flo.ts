@@ -15,7 +15,7 @@ import {
   submitCommand,
   syncCommand,
 } from "./lib/commands/index.js";
-import { CONFIG_FILE, loadConfig } from "./lib/config.js";
+import { configLabel, loadConfig } from "./lib/config.js";
 import { c, fail } from "./lib/ui.js";
 
 const HELP = `
@@ -42,8 +42,9 @@ Usage:
     -a                    stage all changes first
     -c                    create a new commit instead of amending
     -e                    open editor for the amended message
-  flo setup               Configure .flo/config.json for this repo (trunk,
-                          branch template, user prefix). Per-dev — auto-ignored.
+  flo setup               Configure per-dev flo config for this repo (trunk,
+                          branch template, user prefix). Stored under ~/.flo
+                          so nothing touches your repo's .gitignore.
   flo push                Push current branch with --force-with-lease
                           (sets upstream on first push).
   flo submit              Push and open/update the PR for the current branch.
@@ -114,7 +115,7 @@ async function main() {
   // setup and help). If it's missing, offer to run setup inline.
   if (cmd !== "setup" && (await loadConfig()) === null) {
     console.log(
-      c.dim(`  No ${c.b(CONFIG_FILE)} found for this repo.`),
+      c.dim(`  No flo config found for this repo (expected at ${c.b(await configLabel())}).`),
     );
     if (process.stdout.isTTY) {
       const { runSetup } = await inquirer.prompt<{ runSetup: boolean }>([

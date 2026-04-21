@@ -2,7 +2,7 @@
 
 `flo` is a local git workflow helper for stacked branches. It wraps the handful of git invocations you'd otherwise type a hundred times a day, with safer defaults and friendlier output.
 
-- [`flo setup`](#flo-setup) — configure `.flo/config.json` for this repo
+- [`flo setup`](#flo-setup) — configure your per-dev settings for this repo
 - [`flo sync`](#flo-sync) — fetch, prune merged branches, restack
 - [`flo checkout`](#flo-checkout) — pick a branch from a graph view
 - [`flo get`](#flo-get) — fetch + checkout a remote branch
@@ -17,41 +17,64 @@
 
 ## `flo setup`
 
-Interactive setup: writes `.flo/config.json` in the repo root with your trunk branch, user prefix, and branch-naming template. The whole `.flo/` folder is **personal to each dev** — setup auto-adds it to `.gitignore` so it never gets committed. Every command reads this file when present; if it's missing, flo will offer to run setup inline before continuing (see [Auto-prompt on first use](#auto-prompt-on-first-use) below).
+Interactive setup: writes a YAML config with your trunk branch and an optional branch-name prefix. Config lives **outside the repo**, under `~/.flo/projects/<host>/<owner>/<repo>/config.yml` (or `$XDG_CONFIG_HOME/flo/...` on Linux when that variable is set) — nothing to `.gitignore`. Every command reads this file when present; if it's missing, flo offers to run setup inline before continuing (see [Auto-prompt on first use](#auto-prompt-on-first-use) below).
 
-**Config shape**
+**What it asks**
 
-```json
-{
-  "trunk": "main",
-  "branch": {
-    "template": "{user}/{slug}",
-    "user": "bk"
-  }
-}
+1. **Trunk branch** — auto-detects from `origin/HEAD`, falls back to `main`/`master`.
+2. **Prefix your branches with a personal tag?** — yes/no. Handy on shared repos where everyone's branches share a root namespace (`bk/add-feature`, `alice/fix-bug`). Defaults to yes when flo detects your git email.
+3. **Prefix** — if yes. Defaults to the local part of your `git config user.email`. Validated against a safe subset for git refs (letters, digits, `._-`).
+
+**Example run**
+
+```
+? Trunk branch (main)
+? Prefix your branches with a personal tag? (Y/n)
+? Prefix (bk)
+
+✔ Wrote ~/.flo/projects/github.com/owner/repo/config.yml
+
+  trunk:      main
+  prefix:     bk
+
+  Example:    add_new_feature → bk/add_new_feature
 ```
 
-**Template tokens**
+**Config shape on disk**
 
-| Token    | What it expands to |
-| -------- | ------------------ |
-| `{user}` | `branch.user` from config (fallback: local part of `git config user.email`) |
-| `{slug}` | slugified commit message (lowercase, spaces → `_`, git-invalid chars stripped, 60 chars max) |
+```yaml
+trunk: main
+branch:
+  template: "{user}/{slug}"   # or "{slug}" when no prefix
+  user: bk                    # omitted when no prefix
+```
 
-**Presets offered by setup**
+Setup only writes the two template shapes above (`{user}/{slug}` and `{slug}`). The tokens are an implementation detail — `{user}` expands to `branch.user`, `{slug}` to a slugified commit subject (lowercase, spaces → `_`, git-invalid chars stripped, 60 chars max). Power users can hand-edit the YAML for other patterns like `"{user}-{slug}"`; the UI never exposes the tokens.
 
-- `{slug}` — plain
-- `{user}/{slug}` — user-prefixed (default)
-- custom — enter your own template
+The template is applied wherever flo suggests a branch name (currently: the trunk-guard prompt in `commit` and `modify`). Re-running `flo setup` prompts before overwriting.
 
-The template is applied wherever flo suggests a branch name (currently: the trunk-guard prompt in `commit` and `modify`). Re-running `flo setup` prompts to overwrite the existing config. The `.flo/` folder is per-dev by convention — each teammate runs `flo setup` once after cloning.
+**Slot path resolution**
+
+flo derives the slot from your `origin` remote. SSH and HTTPS forms of the same remote resolve to the **same slot** — re-cloning with a different URL scheme keeps your config.
+
+| Origin URL | Slot |
+| ---------- | ---- |
+| `git@github.com:owner/repo.git` | `~/.flo/projects/github.com/owner/repo/` |
+| `https://github.com/owner/repo.git` | `~/.flo/projects/github.com/owner/repo/` |
+| `ssh://git@github.com/owner/repo` | `~/.flo/projects/github.com/owner/repo/` |
+| `https://gitlab.com/group/sub/repo` | `~/.flo/projects/gitlab.com/group/sub/repo/` |
+| (no `origin` remote) | `~/.flo/projects/_local/<dirname>/` — setup warns when this fallback is used |
+
+Normalization: lowercase the host, strip `www.`, strip trailing `.git` / `/`. Unusual URL shapes (empty paths, `..` segments) fall back to the `_local/` slot.
+
+**Legacy paths.** Existing repos with `.flo/config.json` or `.flo.json` keep working — flo falls back to those when no user-level config exists. Re-running `flo setup` writes the new YAML location; you can delete the old `.flo/` directory afterwards (a dedicated `--migrate` flow will handle this automatically in a later release).
 
 ### Auto-prompt on first use
 
-Any command other than `setup` / `help` checks for `.flo/config.json` before running. If it's missing, flo asks inline:
+Any command other than `setup` / `help` checks for a loadable config before running. If none is found, flo asks inline:
 
 ```
-  No .flo/config.json found for this repo.
+  No flo config found for this repo (expected at ~/.flo/projects/github.com/owner/repo/config.yml).
 ? Run flo setup now? (Y/n)
 ```
 
