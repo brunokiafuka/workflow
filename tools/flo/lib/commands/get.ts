@@ -1,3 +1,4 @@
+import { cliui } from "@poppinss/cliui";
 import {
   branchExists,
   currentBranch,
@@ -8,6 +9,8 @@ import {
 } from "../git.js";
 import { conflictHint, fail, logCmd, success } from "../ui.js";
 
+const ui = cliui();
+
 export async function getCommand(branch: string | undefined): Promise<void> {
   if (!branch) {
     const current = await currentBranch();
@@ -17,32 +20,42 @@ export async function getCommand(branch: string | undefined): Promise<void> {
     branch = current;
   }
 
-  logCmd(["fetch", "origin", branch!]);
-  const fetched = await gitFetch(["origin", branch!]);
-  if (fetched.exitCode !== 0) {
-    fail(`Couldn't fetch origin/${branch}: ${fetched.stderr.trim()}`);
-  }
+  const existed = await branchExists(branch!);
 
-  if (await hasUncommittedChanges()) {
-    fail("You've got uncommitted changes. Commit or stash them first, then try again.");
-  }
+  await ui
+    .tasks()
+    .add(`Fetching origin/${branch}`, async (task) => {
+      task.update(`git fetch origin ${branch}`);
+      const fetched = await gitFetch(["origin", branch!]);
+      if (fetched.exitCode !== 0) return task.error(`couldn't fetch — ${fetched.stderr.trim()}`);
+      return "up to date";
+    })
+    .addIf(!existed, `Creating ${branch} tracking origin/${branch}`, async (task) => {
+      const co = await git(["checkout", "-b", branch!, "--track", `origin/${branch}`]);
+      if (co.exitCode !== 0) return task.error(`couldn't create ${branch}: ${co.stderr}`);
+      return "tracking set";
+    })
+    .addIf(existed, `Switching to ${branch}`, async (task) => {
+      if (await hasUncommittedChanges()) {
+        return task.error("you've got uncommitted changes — commit or stash them first");
+      }
+      const co = await git(["checkout", branch!]);
+      if (co.exitCode !== 0) return task.error(`couldn't switch: ${co.stderr}`);
+      return "checked out";
+    })
+    .run();
 
-  if (await branchExists(branch!)) {
-    logCmd(["checkout", branch!]);
-    const co = await git(["checkout", branch!]);
-    if (co.exitCode !== 0) fail(`Couldn't switch to ${branch}: ${co.stderr}`);
-    logCmd(["rebase", `origin/${branch}`]);
-    const rebase = await gitInherit(["rebase", `origin/${branch}`]);
-    if (rebase !== 0) {
-      conflictHint("rebase");
-      process.exit(1);
-    }
-    success(`${branch} is up to date with origin/${branch} ✨`);
+  if (!existed) {
+    success(`Created ${branch} and set it tracking origin/${branch}`);
     return;
   }
 
-  logCmd(["checkout", "-b", branch!, "--track", `origin/${branch}`]);
-  const co = await git(["checkout", "-b", branch!, "--track", `origin/${branch}`]);
-  if (co.exitCode !== 0) fail(`Couldn't create ${branch}: ${co.stderr}`);
-  success(`Created ${branch} and set it tracking origin/${branch}`);
+  // Rebase uses inherited stdio so the user sees git's own output on conflict.
+  logCmd(["rebase", `origin/${branch}`]);
+  const rebase = await gitInherit(["rebase", `origin/${branch}`]);
+  if (rebase !== 0) {
+    conflictHint("rebase");
+    process.exit(1);
+  }
+  success(`${branch} is up to date with origin/${branch} ✨`);
 }

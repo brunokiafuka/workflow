@@ -1,3 +1,4 @@
+import { cliui } from "@poppinss/cliui";
 import inquirer, { type DistinctQuestion } from "inquirer";
 import {
   configLabel,
@@ -10,7 +11,9 @@ import {
 } from "../config.js";
 import { resolveSlot } from "../slot.js";
 import { detectTrunk } from "../trunk.js";
-import { c, info, success } from "../ui.js";
+import { colors, info, success } from "../ui.js";
+
+const ui = cliui();
 
 const SAMPLE_SLUG = "add_new_feature";
 const PREFIX_TEMPLATE = "{user}/{slug}";
@@ -47,8 +50,16 @@ export async function setupCommand(): Promise<void> {
     if (!overwrite) return;
   }
 
-  const detectedTrunk = await detectTrunk();
-  const resolved = await resolveConfig();
+  let detectedTrunk = "";
+  let resolved: Awaited<ReturnType<typeof resolveConfig>>;
+  await ui
+    .tasks()
+    .add("Detecting repo context", async () => {
+      detectedTrunk = await detectTrunk();
+      resolved = await resolveConfig();
+      return `trunk ${detectedTrunk}`;
+    })
+    .run();
 
   const questions: DistinctQuestion<Answers>[] = [
     {
@@ -62,13 +73,13 @@ export async function setupCommand(): Promise<void> {
       type: "confirm",
       name: "usePrefix",
       message: "Prefix your branches with a personal tag?",
-      default: Boolean(resolved.user),
+      default: Boolean(resolved!.user),
     },
     {
       type: "input",
       name: "prefix",
       message: "Prefix",
-      default: resolved.user || undefined,
+      default: resolved!.user || undefined,
       when: (a) => a.usePrefix === true,
       validate: validatePrefix,
     },
@@ -88,24 +99,31 @@ export async function setupCommand(): Promise<void> {
     },
   };
 
-  const path = await saveConfig(cfg);
-  const slot = await resolveSlot();
+  let path = "";
+  await ui
+    .tasks()
+    .add("Writing config", async (task) => {
+      path = await saveConfig(cfg);
+      return displayPath(path);
+    })
+    .run();
 
+  const slot = await resolveSlot();
   const preview = renderBranchName(
     { trunk, template, user: prefix, hasConfigFile: true, configPath: path },
     SAMPLE_SLUG,
   );
 
-  success(`Wrote ${c.b(displayPath(path))}`);
+  success(`Wrote ${colors.bold(displayPath(path))}`);
   if (!slot.usedOrigin) {
     info(
-      `No git ${c.b("origin")} found — config stored under ${c.b(`_local/${slot.projectId.slice("_local/".length)}`)}.`,
+      `No git ${colors.bold("origin")} found — config stored under ${colors.bold(`_local/${slot.projectId.slice("_local/".length)}`)}.`,
     );
   }
   console.log("");
-  console.log(`  trunk:      ${c.cyan(trunk)}`);
-  console.log(`  prefix:     ${usePrefix ? c.cyan(prefix) : c.dim("(none)")}`);
+  console.log(`  trunk:      ${colors.cyan(trunk)}`);
+  console.log(`  prefix:     ${usePrefix ? colors.cyan(prefix) : colors.dim("(none)")}`);
   console.log("");
-  console.log(`  Example:    ${c.dim(SAMPLE_SLUG)} → ${c.b(preview)}`);
+  console.log(`  Example:    ${colors.dim(SAMPLE_SLUG)} → ${colors.bold(preview)}`);
   console.log("");
 }

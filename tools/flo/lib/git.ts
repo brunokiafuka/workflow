@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import chalk from "chalk";
+import { colors } from "./ui.js";
 import cliProgress from "cli-progress";
 import { execa, ExecaError } from "execa";
 
@@ -74,7 +74,7 @@ export function gitFetch(args: string[]): Promise<{ exitCode: number; stderr: st
       if (bar) return;
       bar = new cliProgress.SingleBar(
         {
-          format: `${chalk.cyan("{phase}")} ${chalk.green("{bar}")} ${chalk.bold("{percentage}%")}`,
+          format: `${colors.cyan("{phase}")} ${colors.green("{bar}")} ${colors.bold("{percentage}%")}`,
           barCompleteChar: "█",
           barIncompleteChar: "░",
           barsize: 24,

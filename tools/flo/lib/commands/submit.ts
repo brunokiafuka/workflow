@@ -1,7 +1,10 @@
+import { cliui } from "@poppinss/cliui";
 import { execa } from "execa";
 import { currentBranch, git, upstreamOf } from "../git.js";
-import { c, fail, success, warn } from "../ui.js";
-import { pushCurrentBranch } from "./push.js";
+import { colors, fail, success, warn } from "../ui.js";
+import { pushCurrentBranch, type PushResult } from "./push.js";
+
+const ui = cliui();
 
 type PrStatus = "new" | "update" | "no update";
 
@@ -17,47 +20,21 @@ async function ensureGh(): Promise<void> {
 
 async function lookupPr(branch: string): Promise<PrInfo> {
   try {
-    const r = await execa("gh", [
-      "pr",
-      "view",
-      branch,
-      "--json",
-      "url,isDraft,state",
-    ]);
-    const data = JSON.parse(r.stdout) as { url: string; isDraft: boolean; state: string };
-    return data;
+    const r = await execa("gh", ["pr", "view", branch, "--json", "url,isDraft,state"]);
+    return JSON.parse(r.stdout) as { url: string; isDraft: boolean; state: string };
   } catch {
     return null;
   }
 }
 
-function startSpinner(label: string): () => void {
-  if (!process.stdout.isTTY) {
-    process.stdout.write(`  ${label}…\n`);
-    return () => {};
-  }
-  const frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
-  let i = 0;
-  const render = () => {
-    process.stdout.write(`\r  ${c.cyan(frames[i % frames.length])} ${label}…`);
-    i++;
-  };
-  render();
-  const id = setInterval(render, 80);
-  return () => {
-    clearInterval(id);
-    process.stdout.write(`\r  ${c.ok("✓")} ${label}    \n`);
-  };
-}
-
 function badge(status: PrStatus): string {
   switch (status) {
     case "new":
-      return c.cyan("(new)");
+      return colors.cyan("(new)");
     case "update":
-      return c.warn("(update)");
+      return colors.yellow("(update)");
     case "no update":
-      return c.dim("(no update)");
+      return colors.dim("(no update)");
   }
 }
 
@@ -72,7 +49,6 @@ export async function submitCommand(): Promise<void> {
   const existing = await lookupPr(branch);
   const upstream = await upstreamOf(branch);
 
-  // Determine status before pushing.
   let status: PrStatus;
   if (!existing) {
     status = "new";
@@ -84,44 +60,55 @@ export async function submitCommand(): Promise<void> {
     status = local && remote && local === remote ? "no update" : "update";
   }
 
-  console.log(`${c.b(branch)}  ${badge(status)}`);
+  console.log(`${colors.bold(branch)}  ${badge(status)}`);
 
-  // Push (skip when nothing to push).
+  let pushResult: PushResult | null = null;
+  let prUrl = existing?.url ?? "";
+
+  const tm = ui.tasks();
+
   if (status !== "no update") {
-    const stopPush = startSpinner("pushing");
-    const { result } = await pushCurrentBranch();
-    stopPush();
-    if (result.exitCode !== 0) {
-      if (/stale info|rejected|non-fast-forward|force-with-lease/i.test(result.stderr)) {
-        warn("Remote has moved on since your last fetch. Run `flo sync` first, then try again.");
-      } else if (result.stderr.trim()) {
-        process.stderr.write(`${result.stderr}\n`);
+    tm.add("Pushing", async (task) => {
+      const { result } = await pushCurrentBranch();
+      pushResult = result;
+      if (result.exitCode !== 0) {
+        return task.error(result.stderr.trim().split("\n").pop() ?? "push failed");
       }
-      process.exit(result.exitCode || 1);
-    }
+      return result.firstPush ? "set upstream to origin" : "up to date";
+    });
   }
 
-  // Open or refresh PR.
-  let prUrl = existing?.url ?? "";
   if (!existing) {
-    const stopPr = startSpinner("opening draft PR");
-    try {
+    tm.add("Opening draft PR", async (task) => {
       const r = await execa("gh", ["pr", "create", "--draft", "--fill"], { reject: false });
       if (r.exitCode !== 0) {
-        stopPr();
-        if (r.stderr?.trim()) process.stderr.write(`${r.stderr}\n`);
-        fail("Couldn't open the PR.");
+        return task.error(r.stderr?.trim().split("\n").pop() ?? "gh pr create failed");
       }
       const match = r.stdout.match(/https?:\/\/\S+/);
       prUrl = match ? match[0] : (await lookupPr(branch))?.url ?? "";
-    } finally {
-      stopPr();
-    }
+      return "draft created";
+    });
   } else if (status === "update") {
-    console.log(`  ${c.ok("✓")} PR updated`);
+    tm.add("Updating PR", async () => "refreshed");
   }
 
-  const link = prUrl ? c.cyan(prUrl) : c.dim("(no url)");
+  await tm.run();
+
+  if (pushResult && (pushResult as PushResult).exitCode !== 0) {
+    const stderr = (pushResult as PushResult).stderr;
+    if (/stale info|rejected|non-fast-forward|force-with-lease/i.test(stderr)) {
+      warn("Remote has moved on since your last fetch. Run `flo sync` first, then try again.");
+    } else if (stderr.trim()) {
+      process.stderr.write(`${stderr}\n`);
+    }
+    process.exit((pushResult as PushResult).exitCode || 1);
+  }
+
+  if (tm.getState() === "failed") {
+    process.exit(1);
+  }
+
+  const link = prUrl ? colors.cyan(prUrl) : colors.dim("(no url)");
   console.log("");
-  success(`${c.b(branch)}: ${link}  ${badge(status)}`);
+  success(`${colors.bold(branch)}: ${link}  ${badge(status)}`);
 }

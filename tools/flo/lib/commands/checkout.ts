@@ -1,9 +1,11 @@
+import { cliui } from "@poppinss/cliui";
 import enquirer from "enquirer";
 import { branchExists, currentBranch, git, localBranches } from "../git.js";
 import { detectTrunk } from "../trunk.js";
-import { c, fail, logCmd, success } from "../ui.js";
+import { colors, fail, success } from "../ui.js";
 
 const { prompt } = enquirer;
+const ui = cliui();
 
 type Row = { branch: string; sha: string; subject: string; isTrunk: boolean };
 
@@ -37,12 +39,12 @@ export async function checkoutCommand(): Promise<void> {
   console.log("");
   rows.forEach((r, i) => {
     const isLast = i === rows.length - 1;
-    const marker = r.branch === current ? c.cyan("●") : r.isTrunk ? c.dim("○") : c.dim("○");
-    const name = r.branch === current ? c.b(r.branch) : r.branch;
+    const marker = r.branch === current ? colors.cyan("●") : colors.dim("○");
+    const name = r.branch === current ? colors.bold(r.branch) : r.branch;
     const padded = r.branch.padEnd(maxBranchLen, " ").replace(r.branch, name);
-    const meta = r.sha ? c.dim(`${r.sha}  ${truncate(r.subject, 50)}`) : "";
+    const meta = r.sha ? colors.dim(`${r.sha}  ${truncate(r.subject, 50)}`) : "";
     console.log(`  ${marker} ${padded}  ${meta}`);
-    if (!isLast) console.log(`  ${c.dim("│")}`);
+    if (!isLast) console.log(`  ${colors.dim("│")}`);
   });
   console.log("");
 
@@ -52,7 +54,7 @@ export async function checkoutCommand(): Promise<void> {
 
   const choices = rows.map((r) => ({
     name: r.branch,
-    message: `${r.branch}${r.isTrunk ? c.dim("  (trunk)") : ""}`,
+    message: `${r.branch}${r.isTrunk ? colors.dim("  (trunk)") : ""}`,
   }));
   const res = (await prompt({
     type: "select",
@@ -66,8 +68,15 @@ export async function checkoutCommand(): Promise<void> {
   if (!target || target === current) return;
   if (!(await branchExists(target))) fail(`Branch ${target} doesn't exist.`);
 
-  logCmd(["checkout", target]);
-  const co = await git(["checkout", "--quiet", target], { allowFail: true });
-  if (co.exitCode !== 0) fail(`Couldn't switch: ${co.stderr.trim()}`);
-  success(`Switched to ${c.b(target)}`);
+  await ui
+    .tasks()
+    .add(`Switching to ${target}`, async (task) => {
+      task.update(`git checkout ${target}`);
+      const co = await git(["checkout", "--quiet", target], { allowFail: true });
+      if (co.exitCode !== 0) return task.error(co.stderr.trim() || "checkout failed");
+      return "switched";
+    })
+    .run();
+
+  success(`Switched to ${colors.bold(target)}`);
 }
