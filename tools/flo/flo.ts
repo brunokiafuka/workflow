@@ -14,6 +14,7 @@ import {
   restackCommand,
   runCommand,
   setupCommand,
+  type SetupOpts,
   submitCommand,
   syncCommand,
 } from "./lib/commands/index.js";
@@ -45,14 +46,16 @@ Usage:
     -a                    stage all changes first
     -c                    create a new commit instead of amending
     -e                    open editor for the amended message
-  flo setup               Configure per-dev flo config for this repo (trunk,
-                          branch template, user prefix). Stored under ~/.flo
-                          so nothing touches your repo's .gitignore.
+  flo setup [--update]    Configure per-dev flo config for this repo (trunk,
+                          branch prefix, PR mode). Stored under ~/.flo so
+                          nothing touches your repo's .gitignore. Pass
+                          --update to tweak specific settings in place
+                          instead of overwriting the whole config.
   flo push                Push current branch with --force-with-lease
                           (sets upstream on first push).
   flo submit              Push and open/update the PR for the current branch.
-                          Creates a draft PR (via gh pr create --draft --fill)
-                          if none exists yet.
+                          Opens a new PR (draft or ready-for-review per your
+                          flo setup) when none exists yet.
   flo run <name> [args]   Run a project command defined in flo.yml at the repo
                           root. Output is boxed with a status footer. You can
                           also invoke recipes directly: "flo test" is short for
@@ -96,6 +99,21 @@ function parseCommit(argv: string[]): CommitOpts {
         break;
       default:
         fail(`Unknown flag for commit: ${a}`);
+    }
+  }
+  return opts;
+}
+
+function parseSetup(argv: string[]): SetupOpts {
+  const opts: SetupOpts = {};
+  for (const a of argv) {
+    switch (a) {
+      case "-u":
+      case "--update":
+        opts.update = true;
+        break;
+      default:
+        fail(`Unknown flag for setup: ${a}`);
     }
   }
   return opts;
@@ -216,7 +234,7 @@ async function main() {
       await pushCommand();
       break;
     case "setup":
-      await setupCommand();
+      await setupCommand(parseSetup(rest));
       break;
     case "submit":
       await submitCommand();

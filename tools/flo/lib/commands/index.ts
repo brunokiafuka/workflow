@@ -8,6 +8,6 @@ export { modifyCommand, type ModifyOpts } from "./modify.js";
 export { pushCommand } from "./push.js";
 export { restackCommand } from "./restack.js";
 export { runCommand } from "./run.js";
-export { setupCommand } from "./setup.js";
+export { setupCommand, type SetupOpts } from "./setup.js";
 export { submitCommand } from "./submit.js";
 export { syncCommand } from "./sync.js";
