@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# claude-tools installer — symlinks the status line into ~/.claude so edits in
+# this repo are live. Safe to re-run.
+#
+# Does NOT touch ~/.claude/settings.json. See settings.example.json for the
+# snippet you need to merge manually (statusLine + Stop hook).
+#
+# When installed via Homebrew, $CLAUDE_TOOLS_HOME is set to the brew opt
+# prefix so symlinks survive `brew upgrade`.
+set -e
+
+DIR="${CLAUDE_TOOLS_HOME:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+CLAUDE_DIR="$HOME/.claude"
+
+mkdir -p "$CLAUDE_DIR"
+
+link() {
+  local src="$1"
+  local dst="$2"
+
+  if [ -L "$dst" ]; then
+    local current
+    current=$(readlink "$dst")
+    if [ "$current" = "$src" ]; then
+      echo "  ✓ $dst already linked"
+      return
+    fi
+    rm "$dst"
+  elif [ -e "$dst" ]; then
+    local backup="${dst}.bak.$(date +%Y%m%d%H%M%S)"
+    echo "  ↪ backing up $dst → $backup"
+    mv "$dst" "$backup"
+  fi
+
+  ln -s "$src" "$dst"
+  echo "  + $dst → $src"
+}
+
+echo "Linking claude-tools into $CLAUDE_DIR..."
+link "$DIR/statusline.js" "$CLAUDE_DIR/statusline.js"
+
+echo ""
+if [ -f "$CLAUDE_DIR/settings.json" ]; then
+  if ! grep -q '"statusLine"' "$CLAUDE_DIR/settings.json" 2>/dev/null; then
+    echo "⚠️  ~/.claude/settings.json has no statusLine block."
+    echo "    Merge the snippet from: $DIR/settings.example.json"
+  else
+    echo "✓ settings.json already has a statusLine block (leaving it alone)."
+  fi
+else
+  echo "⚠️  No ~/.claude/settings.json yet."
+  echo "    Copy $DIR/settings.example.json to $CLAUDE_DIR/settings.json as a starting point."
+fi
+
+echo ""
+echo "Done."

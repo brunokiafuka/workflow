@@ -16,6 +16,7 @@
 | Tool | What it does |
 | ---- | ------------ |
 | [`flo`](tools/flo) | Local git workflow helper (Graphite-style): sync, stacked branches, draft-PR submit. |
+| [`claude`](tools/claude) | Claude Code customizations |
 
 ## Layout
 
