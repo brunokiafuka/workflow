@@ -37,6 +37,11 @@ export async function runCommand(
   const extras = extraArgs.length ? ` ${extraArgs.map(shellQuote).join(" ")}` : "";
   const full = `${recipe.command}${extras}`;
 
+  if (recipe.interactive) {
+    await runInteractive(recipe.name, full);
+    return;
+  }
+
   const buffer: string[] = [];
   let exitCode = 0;
 
@@ -76,4 +81,27 @@ export async function runCommand(
     console.error("");
     process.exit(exitCode);
   }
+}
+
+/**
+ * Interactive recipe: child inherits our stdio so it can prompt the user and
+ * stream output live. No spinner, no output buffering — just a command header,
+ * the child's native output, and a status footer.
+ */
+async function runInteractive(name: string, full: string): Promise<void> {
+  console.log(`${colors.cyan("▶")} ${colors.bold(name)}  ${colors.dim(full)}`);
+  const child = spawn(full, {
+    shell: true,
+    stdio: "inherit",
+    env: { ...process.env, FORCE_COLOR: process.env.FORCE_COLOR ?? "1" },
+  });
+  const exitCode = await new Promise<number>((resolve) => {
+    child.on("close", (c) => resolve(c ?? 0));
+    child.on("error", () => resolve(1));
+  });
+  if (exitCode !== 0) {
+    console.error(`${colors.red("✗")} ${name} exited with ${exitCode}`);
+    process.exit(exitCode);
+  }
+  console.log(`${colors.green("✓")} ${name} done`);
 }

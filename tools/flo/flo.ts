@@ -21,6 +21,7 @@ import {
 import { configLabel, loadConfig } from "./lib/config.js";
 import { listRecipeNames, loadRecipes, resolveRecipe } from "./lib/recipes.js";
 import { c, fail } from "./lib/ui.js";
+import { maybeNotifyUpdate } from "./lib/updater.js";
 
 const HELP = `
 flo — your local git workflow helper
@@ -148,6 +149,16 @@ function parseModify(argv: string[]): ModifyOpts {
   return opts;
 }
 
+const UPDATE_SKIP_COMMANDS = new Set(["setup", "help", "--help", "-h"]);
+
+function shouldCheckForUpdate(cmd: string | undefined): boolean {
+  if (!cmd) return false;
+  if (UPDATE_SKIP_COMMANDS.has(cmd)) return false;
+  if (process.env.FLO_NO_UPDATE_CHECK === "1") return false;
+  if (!process.stdout.isTTY) return false;
+  return true;
+}
+
 async function main() {
   const [cmd, ...rest] = process.argv.slice(2);
 
@@ -252,11 +263,16 @@ async function main() {
   }
 }
 
-main().catch((err) => {
-  // enquirer throws on Ctrl-C with an empty value — treat as clean exit.
-  if (err === "" || err === undefined) {
-    console.error("\nOK, cancelled.");
-    process.exit(130);
-  }
-  fail(err instanceof Error ? err.message : String(err));
-});
+main()
+  .then(async () => {
+    const cmd = process.argv[2];
+    if (shouldCheckForUpdate(cmd)) await maybeNotifyUpdate();
+  })
+  .catch((err) => {
+    // enquirer throws on Ctrl-C with an empty value — treat as clean exit.
+    if (err === "" || err === undefined) {
+      console.error("\nOK, cancelled.");
+      process.exit(130);
+    }
+    fail(err instanceof Error ? err.message : String(err));
+  });

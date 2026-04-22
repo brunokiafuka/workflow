@@ -8,6 +8,8 @@ export type Recipe = {
   description?: string;
   command: string;
   aliases: string[];
+  /** Inherit stdio so the recipe can prompt the user directly. */
+  interactive: boolean;
 };
 
 export type InitStep = {
@@ -65,13 +67,26 @@ export function parseRecipes(raw: string, path: string): RecipesFile {
     if (!val || typeof val !== "object") {
       throw new Error(`${path}: commands.${name} must be an object`);
     }
-    const entry = val as { description?: unknown; command?: unknown; aliases?: unknown };
+    const entry = val as {
+      description?: unknown;
+      command?: unknown;
+      aliases?: unknown;
+      interactive?: unknown;
+    };
     if (typeof entry.command !== "string" || !entry.command.trim()) {
       throw new Error(`${path}: commands.${name}.command is required (string)`);
     }
     const aliases = Array.isArray(entry.aliases)
       ? entry.aliases.filter((a): a is string => typeof a === "string" && a.length > 0)
       : [];
+    if (
+      entry.interactive !== undefined &&
+      typeof entry.interactive !== "boolean"
+    ) {
+      throw new Error(
+        `${path}: commands.${name}.interactive must be a boolean`,
+      );
+    }
     for (const alias of aliases) {
       const owner = aliasOwner.get(alias);
       if (owner && owner !== name) {
@@ -92,6 +107,7 @@ export function parseRecipes(raw: string, path: string): RecipesFile {
       description:
         typeof entry.description === "string" ? entry.description.trim() || undefined : undefined,
       aliases,
+      interactive: entry.interactive === true,
     };
   }
 

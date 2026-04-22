@@ -10,3 +10,8 @@ commands:
     description: Run the test suite
     command: pnpm --filter flo test
     aliases: [t]
+  release-flo:
+    description: Release a new version of flo
+    command: sh scripts/release.sh
+    aliases: [fr]
+    interactive: true
