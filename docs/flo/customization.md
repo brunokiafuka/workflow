@@ -58,6 +58,7 @@ commands:
 | `command` | string | ✅ | Raw shell string. Passed through your `$SHELL` (`-c`), so `&&`, pipes, env vars, and quoting all work. |
 | `description` | string | no | One-liner shown in listings. |
 | `aliases` | string[] | no | Alternate names. Must be unique across the file and must not shadow another command's primary name. |
+| `interactive` | boolean | no | When `true`, the recipe inherits flo's stdio — prompts from the child (`read`, `inquirer`, `gh auth login`, etc.) reach your terminal directly. Default (`false`) buffers output inside a boxed panel, which deadlocks on any command that asks for input. Turn this on for release scripts, interactive CLIs, or anything that expects a TTY. |
 
 **Invocation rules**
 
@@ -119,6 +120,7 @@ Flo reads `flo.yml` on every `flo run` and `flo init` invocation. Typical errors
 | `commands.<name>.command is required (string)` | Missing or non-string `command`. |
 | `alias "x" is defined on both "a" and "b"` | Two commands list the same alias. |
 | `alias "x" on "a" shadows another command` | Alias matches a primary command name. |
+| `commands.<name>.interactive must be a boolean` | `interactive:` set to anything other than `true` / `false`. |
 | `init must be a list of steps` | `init:` isn't a YAML list. |
 | `init[N] must have exactly one step id as key` | A step map has zero or multiple keys at the top level. |
 | `init step "x" is defined twice` | Duplicate step id. |
@@ -138,6 +140,19 @@ commands:
     description: Lint, test, push
     command: pnpm lint && pnpm --filter flo test && flo submit
 ```
+
+**An interactive release / setup script**
+
+```yaml
+commands:
+  release-flo:
+    description: Bump version, commit, push to main
+    command: sh scripts/release.sh
+    aliases: [fr]
+    interactive: true
+```
+
+Without `interactive: true`, `flo run` would capture the script's output in a boxed panel and silently drop any prompts. With it on, the child sees your TTY directly.
 
 **Per-workspace tests in a monorepo**
 

@@ -25,6 +25,32 @@ describe("parseRecipes", () => {
     assert.deepEqual(file.commands.test.aliases, ["t"]);
     assert.deepEqual(file.commands.build.aliases, []);
     assert.equal(file.commands.build.description, undefined);
+    assert.equal(file.commands.test.interactive, false);
+    assert.equal(file.commands.build.interactive, false);
+  });
+
+  test("parses interactive: true", () => {
+    const src = `
+commands:
+  release:
+    command: sh scripts/release.sh
+    interactive: true
+`;
+    const file = parseRecipes(src, "/x/flo.yml");
+    assert.equal(file.commands.release.interactive, true);
+  });
+
+  test("rejects non-boolean interactive values", () => {
+    const src = `
+commands:
+  bad:
+    command: echo hi
+    interactive: "yes"
+`;
+    assert.throws(
+      () => parseRecipes(src, "/x/flo.yml"),
+      /interactive must be a boolean/,
+    );
   });
 
   test("missing commands key yields empty map", () => {

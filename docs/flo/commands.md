@@ -14,6 +14,7 @@
 - [`flo submit`](#flo-submit) — push and open/update a PR (draft or ready-for-review, per `pr.mode`)
 - [`flo run`](#flo-run) — run a project command defined in `flo.yml`
 - [`flo init`](#flo-init) — run the bootstrap steps in `flo.yml`
+- [Update check](#update-check) — automatic "new version available" notice after commands run
 
 ---
 
@@ -276,6 +277,8 @@ Built-ins always win at the top level — define a recipe called `commit` and yo
 
 Non-zero exit shows a red `✗` footer with the exit code, and `flo` exits with the same code.
 
+**Interactive recipes.** Set `interactive: true` on a recipe when the command needs to prompt the user (release scripts, `gh auth login`, etc.). Flo inherits stdio instead of buffering, so prompts and live output reach the terminal directly. Default behavior stays the same for non-interactive recipes. See [Per-project customization → `commands`](./customization.md#commands).
+
 `flo run` does not require `flo setup` — recipes are independent of trunk/user config.
 
 ---
@@ -315,3 +318,15 @@ For the `init:` schema (step shape, required/optional fields, validation errors)
 ```
 
 On failure: `✗ <step> failed in Xs (exit N) — stopping` followed by `N/M steps completed before failure`.
+
+---
+
+## Update check
+
+Every TTY command other than `flo setup` and `flo --help` ends with a one-line notice when a newer version has landed on `main`:
+
+```
+↑ flo 0.3.0 is available (you have 0.2.0). Run `brew upgrade flo` to update.
+```
+
+Cached for 12h in `~/.flo/update-check.json`, silent on network failure, opt out with `FLO_NO_UPDATE_CHECK=1`. See [Installation & releases → Update check](./installation.md#update-check) for the full flow.
