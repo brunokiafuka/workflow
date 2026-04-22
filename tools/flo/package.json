@@ -1,7 +1,8 @@
 {
   "name": "flo",
   "private": true,
-  "description": "Local git workflow helper (graphite-style).",
+  "version": "0.2.0",
+  "description": "Your local flow orchestrator — git, PRs, and project recipes.",
   "bin": {
     "flo": "./flo"
   },

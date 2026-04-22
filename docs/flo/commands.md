@@ -1,8 +1,8 @@
 # `flo` — command reference
 
-`flo` is a local git workflow helper for stacked branches. It wraps the handful of git invocations you'd otherwise type a hundred times a day, with safer defaults and friendlier output.
+`flo` is your local flow orchestrator — git, PRs, and project recipes in one tool. It wraps the handful of git invocations you'd otherwise type a hundred times a day, with safer defaults and friendlier output.
 
-- [`flo setup`](#flo-setup) — configure your per-dev settings for this repo
+- [`flo setup`](#flo-setup) — configure your per-dev settings for this repo (supports `--update` to tweak a single field)
 - [`flo sync`](#flo-sync) — fetch, prune merged branches, restack
 - [`flo checkout`](#flo-checkout) — pick a branch from a graph view
 - [`flo get`](#flo-get) — fetch + checkout a remote branch
@@ -11,7 +11,7 @@
 - [`flo commit`](#flo-commit) — create a commit
 - [`flo modify`](#flo-modify) — amend (or create) a commit
 - [`flo push`](#flo-push) — push with `--force-with-lease`
-- [`flo submit`](#flo-submit) — push and open/update a draft PR
+- [`flo submit`](#flo-submit) — push and open/update a PR (draft or ready-for-review, per `pr.mode`)
 - [`flo run`](#flo-run) — run a project command defined in `flo.yml`
 - [`flo init`](#flo-init) — run the bootstrap steps in `flo.yml`
 
@@ -19,25 +19,36 @@
 
 ## `flo setup`
 
-Interactive setup: writes a YAML config with your trunk branch and an optional branch-name prefix. Config lives **outside the repo**, under `~/.flo/projects/<host>/<owner>/<repo>/config.yml` (or `$XDG_CONFIG_HOME/flo/...` on Linux when that variable is set) — nothing to `.gitignore`. Every command reads this file when present; if it's missing, flo offers to run setup inline before continuing (see [Auto-prompt on first use](#auto-prompt-on-first-use) below).
+Interactive setup: writes a YAML config with your trunk branch, an optional branch-name prefix, and your default PR submission mode. Config lives **outside the repo**, under `~/.flo/projects/<host>/<owner>/<repo>/config.yml` (or `$XDG_CONFIG_HOME/flo/...` on Linux when that variable is set) — nothing to `.gitignore`. Every command reads this file when present; if it's missing, flo offers to run setup inline before continuing (see [Auto-prompt on first use](#auto-prompt-on-first-use) below).
+
+**Flags**
+
+| Flag | What |
+| ---- | ---- |
+| `-u, --update` | Skip the overwrite/update chooser and go straight to picking which fields to tweak. |
 
 **What it asks**
 
 1. **Trunk branch** — auto-detects from `origin/HEAD`, falls back to `main`/`master`.
 2. **Prefix your branches with a personal tag?** — yes/no. Handy on shared repos where everyone's branches share a root namespace (`bk/add-feature`, `alice/fix-bug`). Defaults to yes when flo detects your git email.
 3. **Prefix** — if yes. Defaults to the local part of your `git config user.email`. Validated against a safe subset for git refs (letters, digits, `._-`).
+4. **PR submission mode** — `draft` (the default — safer, flip ready-for-review when you're ready) or `open` (immediately ready-for-review). Used by [`flo submit`](#flo-submit).
 
-**Example run**
+**Example run (fresh)**
 
 ```
 ? Trunk branch (main)
 ? Prefix your branches with a personal tag? (Y/n)
 ? Prefix (bk)
+? How should `flo submit` open PRs? (Use arrow keys)
+❯ Draft — safer default, ready for review later
+  Open — immediately ready for review
 
 ✔ Wrote ~/.flo/projects/github.com/owner/repo/config.yml
 
   trunk:      main
   prefix:     bk
+  pr mode:    draft
 
   Example:    add_new_feature → bk/add_new_feature
 ```
@@ -49,11 +60,27 @@ trunk: main
 branch:
   template: "{user}/{slug}"   # or "{slug}" when no prefix
   user: bk                    # omitted when no prefix
+pr:
+  mode: draft                 # or "open"
 ```
 
 Setup only writes the two template shapes above (`{user}/{slug}` and `{slug}`). The tokens are an implementation detail — `{user}` expands to `branch.user`, `{slug}` to a slugified commit subject (lowercase, spaces → `_`, git-invalid chars stripped, 60 chars max). Power users can hand-edit the YAML for other patterns like `"{user}-{slug}"`; the UI never exposes the tokens.
 
-The template is applied wherever flo suggests a branch name (currently: the trunk-guard prompt in `commit` and `modify`). Re-running `flo setup` prompts before overwriting.
+The template is applied wherever flo suggests a branch name (currently: the trunk-guard prompt in `commit` and `modify`).
+
+### Re-running setup
+
+When a config already exists, `flo setup` prints the current values and offers three choices:
+
+| Choice | What |
+| ------ | ---- |
+| **Update specific settings** | Checkbox picker: trunk, branch prefix, PR mode. Only the chosen fields are re-prompted; everything else is preserved. |
+| **Overwrite from scratch** | Walks the full wizard again, pre-filled from the existing config. |
+| **Cancel** | Bail out without writing. |
+
+`flo setup --update` skips the chooser and jumps straight to the field picker — useful for quick one-off tweaks (`flo setup --update` → pick PR mode → pick `open`).
+
+**Changing trunk is treated as destructive.** flo warns that the previous trunk will no longer be protected from direct commits by [`flo commit`](#flo-commit) / [`flo modify`](#flo-modify), and asks for explicit confirmation (defaults to **No**). Declining keeps the old trunk.
 
 **Slot path resolution**
 
@@ -204,7 +231,7 @@ Pushes and opens (or updates) a PR for the current branch. Requires the [`gh`](h
 
 1. Prints `<branch>  (status)`
 2. Pushes with a spinner (skipped when `(no update)`)
-3. If `(new)`: `gh pr create --draft --fill` — title/body come from commits
+3. If `(new)`: opens a PR via `gh pr create --fill`, adding `--draft` when `pr.mode=draft` (the default — configure via [`flo setup`](#flo-setup)). Title/body come from commits.
 4. If `(update)`: notes that the push itself synced the PR
 5. Prints the PR URL on success
 
@@ -215,6 +242,8 @@ add_branching  (new)
 
 ✓ add_branching: https://github.com/org/repo/pull/3  (new)
 ```
+
+The task label matches the mode — `opening draft PR` for `draft`, `opening PR` for `open`.
 
 ---
 
