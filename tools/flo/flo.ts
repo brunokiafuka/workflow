@@ -30,8 +30,14 @@ Usage:
   flo sync                Fetch origin, fast-forward trunk, prompt to delete
                           merged branches, then rebase every local branch
                           onto trunk. Aborts on conflict and suggests flo restack.
-  flo get [branch]        Fetch and check out <branch> from origin, rebasing
-                          only that one branch. Defaults to the current branch.
+  flo get [target]        Fetch and check out a branch, rebasing only that
+                          one branch. Defaults to the current branch.
+                          <target> can be:
+                            • a branch name (fetched from origin)
+                            • a fork ref like user:branch (resolved to its PR,
+                              then handed to gh pr checkout)
+                            • a PR URL like https://github.com/o/r/pull/N
+                          Hints "flo restack" when the result is behind trunk.
   flo checkout            Pick a local branch from a graph view and switch to it.
   flo restack [branch]    Rebase the current (or named) branch onto trunk,
                           leaving conflicts open for you to resolve.

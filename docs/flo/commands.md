@@ -156,11 +156,21 @@ Selecting the current branch is a no-op.
 
 ---
 
-## `flo get [branch]`
+## `flo get [target]`
 
-Fetches the named branch from origin and checks it out, rebasing that one branch onto trunk. Defaults to the current branch if no name is given.
+Fetches and checks out a branch, rebasing only that one branch. Defaults to the current branch if no target is given.
 
-Useful when a teammate has force-pushed and you want the clean version without affecting your other branches.
+`<target>` can be:
+
+- **A branch name** — fetched from `origin` and rebased onto its upstream.
+- **A fork ref** like `user:branch` — looked up via `gh api` to find the matching PR, then handed off to `gh pr checkout <number>`. Prefers open PRs when a head ref has multiple.
+- **A PR URL** like `https://github.com/owner/repo/pull/9` — validated and passed through to `gh pr checkout <url>`.
+
+Useful when a teammate has force-pushed and you want the clean version without affecting your other branches, or when you're reviewing a PR from a fork.
+
+After a successful checkout, `flo get` checks whether the branch is behind `origin/<trunk>` and hints at `flo restack` when it is.
+
+Requires `gh` to be installed and authenticated for the fork-ref and URL forms.
 
 ---
 
