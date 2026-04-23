@@ -83,3 +83,8 @@ export async function resolveSlot(): Promise<SlotInfo> {
   const configPath = join(projectDir, "config.yml");
   return { baseDir, projectDir, configPath, projectId, usedOrigin };
 }
+
+/** Path to this slot's PR body template, written by `flo setup`. */
+export function prTemplatePath(slot: SlotInfo): string {
+  return join(slot.projectDir, "pr", "template.md");
+}

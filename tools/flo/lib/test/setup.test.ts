@@ -3,6 +3,7 @@ import { describe, test } from "node:test";
 import {
   buildConfig,
   confirmTrunkChange,
+  fieldsForSection,
   prefixFromTemplate,
   validatePrefix,
 } from "../commands/setup.js";
@@ -126,6 +127,25 @@ describe("confirmTrunkChange", () => {
   test("treats surrounding whitespace as unchanged", async () => {
     assert.equal(await confirmTrunkChange("  main  ", "main"), true);
     assert.equal(await confirmTrunkChange("main", "  main  "), true);
+  });
+});
+
+describe("fieldsForSection", () => {
+  test("routes branch naming to prefix updates", () => {
+    assert.deepEqual(fieldsForSection("branchNaming"), ["prefix"]);
+  });
+
+  test("returns empty for submit settings — it has its own sub-menu", () => {
+    assert.deepEqual(fieldsForSection("submitSettings"), []);
+  });
+
+  test("routes repo settings to trunk updates", () => {
+    assert.deepEqual(fieldsForSection("repoSettings"), ["trunk"]);
+  });
+
+  test("maps back and exit to no-op field updates", () => {
+    assert.deepEqual(fieldsForSection("back"), []);
+    assert.deepEqual(fieldsForSection("exit"), []);
   });
 });
 
