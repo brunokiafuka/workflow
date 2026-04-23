@@ -10,6 +10,7 @@ const LEGACY_JSON_FILENAME = "config.json";
 const LEGACY_FLAT_FILE = ".flo.json";
 
 export type PrMode = "draft" | "open";
+export type OpenBrowser = "always" | "new" | "never";
 
 export type FloConfig = {
   trunk?: string;
@@ -19,6 +20,7 @@ export type FloConfig = {
   };
   pr?: {
     mode?: PrMode;
+    openBrowser?: OpenBrowser;
   };
 };
 
@@ -27,11 +29,13 @@ export type ResolvedConfig = {
   template: string;
   user: string;
   prMode: PrMode;
+  openBrowser: OpenBrowser;
   hasConfigFile: boolean;
   configPath: string;
 };
 
 export const DEFAULT_PR_MODE: PrMode = "draft";
+export const DEFAULT_OPEN_BROWSER: OpenBrowser = "always";
 
 /** Display a filesystem path with $HOME collapsed to `~` for readability. */
 export function displayPath(abs: string): string {
@@ -151,6 +155,7 @@ export async function resolveConfig(): Promise<ResolvedConfig> {
     template: cfg?.branch?.template ?? "{slug}",
     user: fallbackUser,
     prMode: cfg?.pr?.mode ?? DEFAULT_PR_MODE,
+    openBrowser: cfg?.pr?.openBrowser ?? DEFAULT_OPEN_BROWSER,
     hasConfigFile: cfg !== null,
     configPath: sourcePath,
   };
