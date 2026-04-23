@@ -1,7 +1,7 @@
 import { strict as assert } from "node:assert";
 import { homedir } from "node:os";
 import { describe, test } from "node:test";
-import { normalizeOrigin, userBaseDir } from "../slot.js";
+import { normalizeOrigin, prTemplatePath, userBaseDir, type SlotInfo } from "../slot.js";
 
 describe("normalizeOrigin", () => {
   describe("SSH short form (git@host:path)", () => {
@@ -197,5 +197,21 @@ describe("userBaseDir", () => {
     } finally {
       resetPlatform();
     }
+  });
+});
+
+describe("prTemplatePath", () => {
+  test("lives under the slot's project dir at pr/template.md", () => {
+    const slot: SlotInfo = {
+      baseDir: "/home/u/.flo",
+      projectDir: "/home/u/.flo/projects/github.com/owner/repo",
+      configPath: "/home/u/.flo/projects/github.com/owner/repo/config.yml",
+      projectId: "github.com/owner/repo",
+      usedOrigin: true,
+    };
+    assert.equal(
+      prTemplatePath(slot),
+      "/home/u/.flo/projects/github.com/owner/repo/pr/template.md",
+    );
   });
 });

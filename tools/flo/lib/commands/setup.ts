@@ -1,7 +1,8 @@
+import { mkdir, stat, writeFile } from "node:fs/promises";
+import { dirname } from "node:path";
 import { cliui } from "@poppinss/cliui";
 import inquirer, { type DistinctQuestion } from "inquirer";
 import {
-  configLabel,
   DEFAULT_PR_MODE,
   displayPath,
   type FloConfig,
@@ -11,9 +12,16 @@ import {
   resolveConfig,
   saveConfig,
 } from "../config.js";
-import { resolveSlot } from "../slot.js";
+import { openInEditor } from "../editor.js";
+import { prTemplatePath, resolveSlot } from "../slot.js";
 import { detectTrunk } from "../trunk.js";
-import { colors, info, success, warn } from "../ui.js";
+import { colors, info, warn } from "../ui.js";
+
+const DEFAULT_PR_TEMPLATE = `## Summary
+
+## Test plan
+- [ ]
+`;
 
 const ui = cliui();
 
@@ -35,6 +43,10 @@ export type FullAnswers = {
 
 type ExistingAction = "update" | "overwrite" | "cancel";
 type UpdateField = "trunk" | "prefix" | "prMode";
+type SetupSection = "branchNaming" | "submitSettings" | "repoSettings" | "back" | "exit";
+type SubmitAction = "submitBehaviour" | "prDescription" | "back" | "exit";
+type PrBodyAction = "override" | "new" | "back" | "exit";
+type SectionResult = { cfg: FloConfig; exit: boolean };
 
 /** Keep prefixes within the safe subset that produces well-formed git refs. */
 export function validatePrefix(v: string): true | string {
@@ -78,14 +90,19 @@ export function prefixFromTemplate(template: string | undefined, user: string): 
   return template.includes("{user}") ? user : "";
 }
 
+function configRow(label: string, value: string): string {
+  return `${label.padEnd(10)}${value}`;
+}
+
 function summarize(cfg: FloConfig): void {
   const prefix = prefixFromTemplate(cfg.branch?.template, cfg.branch?.user ?? "");
   const prMode = cfg.pr?.mode ?? DEFAULT_PR_MODE;
-  console.log("");
-  console.log(`  trunk:      ${cfg.trunk ? colors.cyan(cfg.trunk) : colors.dim("(auto)")}`);
-  console.log(`  prefix:     ${prefix ? colors.cyan(prefix) : colors.dim("(none)")}`);
-  console.log(`  pr mode:    ${colors.cyan(prMode)}`);
-  console.log("");
+  ui.sticker()
+    .heading(colors.dim("Current flo config"))
+    .add(configRow("trunk:", cfg.trunk ? colors.cyan(cfg.trunk) : colors.dim("(auto)")))
+    .add(configRow("prefix:", prefix ? colors.cyan(prefix) : colors.dim("(none)")))
+    .add(configRow("pr mode:", colors.cyan(prMode)))
+    .render();
 }
 
 async function askExistingAction(): Promise<ExistingAction> {
@@ -160,6 +177,64 @@ async function askWhichFields(): Promise<UpdateField[]> {
     },
   ]);
   return fields;
+}
+
+export function fieldsForSection(section: SetupSection): UpdateField[] {
+  switch (section) {
+    case "branchNaming":
+      return ["prefix"];
+    case "submitSettings":
+      // Submit settings opens its own sub-menu; the top-level loop detects
+      // the empty list and delegates to `submitSettingsSection`.
+      return [];
+    case "repoSettings":
+      return ["trunk"];
+    case "back":
+    case "exit":
+      return [];
+  }
+}
+
+async function askSetupSection(): Promise<SetupSection> {
+  const { section } = await inquirer.prompt<{ section: SetupSection }>([
+    {
+      type: "select",
+      name: "section",
+      message: "flo setup",
+      choices: [
+        {
+          name: "Branch naming",
+          value: "branchNaming",
+          description: "Personal tag prepended to new branch names.",
+        },
+        {
+          name: "Submit settings",
+          value: "submitSettings",
+          description: "How `flo submit` opens pull requests (draft or ready for review).",
+        },
+        {
+          name: "Repo settings",
+          value: "repoSettings",
+          description: "Trunk branch this repo builds off of.",
+        },
+        { name: "Back", value: "back" },
+        { name: "Exit", value: "exit" },
+      ],
+    },
+  ]);
+  return section;
+}
+
+async function askConfigureAnotherSection(): Promise<boolean> {
+  const { another } = await inquirer.prompt<{ another: boolean }>([
+    {
+      type: "confirm",
+      name: "another",
+      message: "Configure another setup section?",
+      default: true,
+    },
+  ]);
+  return another;
 }
 
 export function buildConfig(a: FullAnswers): FloConfig {
@@ -253,6 +328,99 @@ async function updateFields(
   return next;
 }
 
+async function pathExists(path: string): Promise<boolean> {
+  try {
+    await stat(path);
+    return true;
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code === "ENOENT") return false;
+    throw e;
+  }
+}
+
+async function askSubmitAction(): Promise<SubmitAction> {
+  const { action } = await inquirer.prompt<{ action: SubmitAction }>([
+    {
+      type: "select",
+      name: "action",
+      message: "Submit settings",
+      choices: [
+        {
+          name: "Submit behaviour",
+          value: "submitBehaviour",
+          description: "How flo opens PRs (draft or ready for review).",
+        },
+        {
+          name: "PR description",
+          value: "prDescription",
+          description: "Template flo submit uses as the PR body.",
+        },
+        { name: "Back", value: "back" },
+        { name: "Exit", value: "exit" },
+      ],
+    },
+  ]);
+  return action;
+}
+
+async function askPrBodyAction(hasTemplate: boolean): Promise<PrBodyAction> {
+  const { action } = await inquirer.prompt<{ action: PrBodyAction }>([
+    {
+      type: "select",
+      name: "action",
+      message: "PR description template",
+      choices: [
+        {
+          name: "Override",
+          value: "override",
+          description: hasTemplate
+            ? "Open the current template in your editor."
+            : "No template yet — seed a starter and open it.",
+        },
+        {
+          name: "New",
+          value: "new",
+          description: "Reset to the starter template, then open it.",
+        },
+        { name: "Back", value: "back" },
+        { name: "Exit", value: "exit" },
+      ],
+    },
+  ]);
+  return action;
+}
+
+async function updatePrTemplate(): Promise<"back" | "exit" | "done"> {
+  const path = prTemplatePath(await resolveSlot());
+  const exists = await pathExists(path);
+  const action = await askPrBodyAction(exists);
+  if (action === "back") return "back";
+  if (action === "exit") return "exit";
+  await mkdir(dirname(path), { recursive: true });
+  if (action === "new" || !exists) {
+    await writeFile(path, DEFAULT_PR_TEMPLATE, "utf8");
+  }
+  await openInEditor(path);
+  info(`PR template: ${colors.bold(displayPath(path))}`);
+  return "done";
+}
+
+async function submitSettingsSection(working: FloConfig): Promise<SectionResult> {
+  while (true) {
+    const action = await askSubmitAction();
+    if (action === "back") return { cfg: working, exit: false };
+    if (action === "exit") return { cfg: working, exit: true };
+    if (action === "submitBehaviour") {
+      const next = await updateFields(working, ["prMode"]);
+      await writeAndReport(next);
+      working = next;
+    } else if (action === "prDescription") {
+      const result = await updatePrTemplate();
+      if (result === "exit") return { cfg: working, exit: true };
+    }
+  }
+}
+
 async function writeAndReport(cfg: FloConfig): Promise<void> {
   let path = "";
   await ui
@@ -279,38 +447,32 @@ async function writeAndReport(cfg: FloConfig): Promise<void> {
     SAMPLE_SLUG,
   );
 
-  success(`Wrote ${colors.bold(displayPath(path))}`);
   if (!slot.usedOrigin) {
     info(
       `No git ${colors.bold("origin")} found — config stored under ${colors.bold(`_local/${slot.projectId.slice("_local/".length)}`)}.`,
     );
   }
-  console.log("");
-  console.log(`  trunk:      ${colors.cyan(cfg.trunk ?? "")}`);
-  console.log(`  prefix:     ${prefix ? colors.cyan(prefix) : colors.dim("(none)")}`);
-  console.log(`  pr mode:    ${colors.cyan(cfg.pr?.mode ?? DEFAULT_PR_MODE)}`);
-  console.log("");
-  console.log(`  Example:    ${colors.dim(SAMPLE_SLUG)} → ${colors.bold(preview)}`);
-  console.log("");
+
+  const prMode = cfg.pr?.mode ?? DEFAULT_PR_MODE;
+  ui.sticker()
+    .heading(colors.green().bold(`Wrote ${displayPath(path)}`))
+    .add(configRow("trunk:", colors.cyan(cfg.trunk ?? "")))
+    .add(configRow("prefix:", prefix ? colors.cyan(prefix) : colors.dim("(none)")))
+    .add(configRow("pr mode:", colors.cyan(prMode)))
+    .add("")
+    .add(configRow("Example:", `${colors.dim(SAMPLE_SLUG)} → ${colors.bold(preview)}`))
+    .render();
 }
 
 export async function setupCommand(opts: SetupOpts = {}): Promise<void> {
   const existing = await loadConfig();
 
-  if (existing) {
-    info(`An existing flo config was found (${await configLabel()}).`);
+  if (existing && opts.update) {
     summarize(existing);
-
-    const action: ExistingAction = opts.update ? "update" : await askExistingAction();
-    if (action === "cancel") return;
-
-    if (action === "update") {
-      const fields = await askWhichFields();
-      const next = await updateFields(existing, fields);
-      await writeAndReport(next);
-      return;
-    }
-    // action === "overwrite" falls through to fresh setup
+    const fields = await askWhichFields();
+    const next = await updateFields(existing, fields);
+    await writeAndReport(next);
+    return;
   } else if (opts.update) {
     info("No existing flo config — running a fresh setup instead.");
   }
@@ -325,15 +487,48 @@ export async function setupCommand(opts: SetupOpts = {}): Promise<void> {
     .run();
 
   const resolved = await resolveConfig();
-  const answers = await askFullSetup(detectedTrunk, {
-    user: resolved.user,
-    prMode: resolved.prMode,
-    usePrefix: Boolean(resolved.user),
+  const defaultConfig = buildConfig({
+    trunk: existing?.trunk ?? detectedTrunk,
+    usePrefix: Boolean(existing?.branch?.user ?? resolved.user),
+    prefix: existing?.branch?.user ?? resolved.user,
+    prMode: existing?.pr?.mode ?? resolved.prMode,
   });
 
-  if (!(await confirmTrunkChange(existing?.trunk, answers.trunk))) {
-    answers.trunk = existing?.trunk ?? answers.trunk;
-    info(`Keeping trunk as ${colors.bold(answers.trunk)}.`);
+  if (existing) {
+    summarize(existing);
+    const action = await askExistingAction();
+    if (action === "cancel") return;
+    if (action === "overwrite") {
+      const answers = await askFullSetup(detectedTrunk, {
+        user: resolved.user,
+        prMode: resolved.prMode,
+        usePrefix: Boolean(resolved.user),
+      });
+      if (!(await confirmTrunkChange(existing.trunk, answers.trunk))) {
+        answers.trunk = existing.trunk ?? answers.trunk;
+        info(`Keeping trunk as ${colors.bold(answers.trunk)}.`);
+      }
+      await writeAndReport(buildConfig(answers));
+      return;
+    }
   }
-  await writeAndReport(buildConfig(answers));
+
+  let working = existing ?? defaultConfig;
+  while (true) {
+    const section = await askSetupSection();
+    if (section === "exit" || section === "back") return;
+
+    if (section === "submitSettings") {
+      const result = await submitSettingsSection(working);
+      working = result.cfg;
+      if (result.exit) return;
+    } else {
+      const fields = fieldsForSection(section);
+      if (fields.length === 0) continue;
+      working = await updateFields(working, fields);
+      await writeAndReport(working);
+    }
+
+    if (!(await askConfigureAnotherSection())) return;
+  }
 }
