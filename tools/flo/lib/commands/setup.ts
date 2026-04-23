@@ -3,10 +3,12 @@ import { dirname } from "node:path";
 import { cliui } from "@poppinss/cliui";
 import inquirer, { type DistinctQuestion } from "inquirer";
 import {
+  DEFAULT_OPEN_BROWSER,
   DEFAULT_PR_MODE,
   displayPath,
   type FloConfig,
   loadConfig,
+  type OpenBrowser,
   type PrMode,
   renderBranchName,
   resolveConfig,
@@ -42,9 +44,14 @@ export type FullAnswers = {
 };
 
 type ExistingAction = "update" | "overwrite" | "cancel";
-type UpdateField = "trunk" | "prefix" | "prMode";
+type UpdateField = "trunk" | "prefix" | "prMode" | "openBrowser";
 type SetupSection = "branchNaming" | "submitSettings" | "repoSettings" | "back" | "exit";
-type SubmitAction = "submitBehaviour" | "prDescription" | "back" | "exit";
+type SubmitAction =
+  | "submitBehaviour"
+  | "prDescription"
+  | "browserBehaviour"
+  | "back"
+  | "exit";
 type PrBodyAction = "override" | "new" | "back" | "exit";
 type SectionResult = { cfg: FloConfig; exit: boolean };
 
@@ -91,17 +98,19 @@ export function prefixFromTemplate(template: string | undefined, user: string): 
 }
 
 function configRow(label: string, value: string): string {
-  return `${label.padEnd(10)}${value}`;
+  return `${label.padEnd(20)}${value}`;
 }
 
 function summarize(cfg: FloConfig): void {
   const prefix = prefixFromTemplate(cfg.branch?.template, cfg.branch?.user ?? "");
   const prMode = cfg.pr?.mode ?? DEFAULT_PR_MODE;
+  const openBrowser = cfg.pr?.openBrowser ?? DEFAULT_OPEN_BROWSER;
   ui.sticker()
     .heading(colors.dim("Current flo config"))
-    .add(configRow("trunk:", cfg.trunk ? colors.cyan(cfg.trunk) : colors.dim("(auto)")))
-    .add(configRow("prefix:", prefix ? colors.cyan(prefix) : colors.dim("(none)")))
-    .add(configRow("pr mode:", colors.cyan(prMode)))
+    .add(configRow("Trunk branch:", cfg.trunk ? colors.cyan(cfg.trunk) : colors.dim("(auto)")))
+    .add(configRow("Branch prefix:", prefix ? colors.cyan(prefix) : colors.dim("(none)")))
+    .add(configRow("PR submission mode:", colors.cyan(prMode)))
+    .add(configRow("Open in browser:", colors.cyan(openBrowser)))
     .render();
 }
 
@@ -170,8 +179,9 @@ async function askWhichFields(): Promise<UpdateField[]> {
       message: "Which settings would you like to update?",
       choices: [
         { name: "Trunk branch", value: "trunk" },
-        { name: "Branch prefix", value: "prefix" },
+        { name: "Branch prefix (personal tag in branch names)", value: "prefix" },
         { name: "PR submission mode (draft | open)", value: "prMode" },
+        { name: "Open PR in browser after submit (always | new | never)", value: "openBrowser" },
       ],
       validate: (v) => (Array.isArray(v) && v.length > 0) || "Pick at least one",
     },
@@ -208,9 +218,9 @@ async function askSetupSection(): Promise<SetupSection> {
           description: "Personal tag prepended to new branch names.",
         },
         {
-          name: "Submit settings",
+          name: "Submit & PR settings",
           value: "submitSettings",
-          description: "How `flo submit` opens pull requests (draft or ready for review).",
+          description: "Submission mode, PR description template, and post-submit browser behaviour.",
         },
         {
           name: "Repo settings",
@@ -322,7 +332,24 @@ async function updateFields(
         ],
       },
     ]);
-    next.pr = { mode: prMode };
+    next.pr = { ...next.pr, mode: prMode };
+  }
+
+  if (fields.includes("openBrowser")) {
+    const { openBrowser } = await inquirer.prompt<{ openBrowser: OpenBrowser }>([
+      {
+        type: "select",
+        name: "openBrowser",
+        message: "Open the PR in your browser after `flo submit`?",
+        default: existing.pr?.openBrowser ?? DEFAULT_OPEN_BROWSER,
+        choices: [
+          { name: "Always open", value: "always" },
+          { name: "Only when a new PR is created", value: "new" },
+          { name: "Don't open", value: "never" },
+        ],
+      },
+    ]);
+    next.pr = { ...next.pr, openBrowser };
   }
 
   return next;
@@ -346,14 +373,19 @@ async function askSubmitAction(): Promise<SubmitAction> {
       message: "Submit settings",
       choices: [
         {
-          name: "Submit behaviour",
+          name: "PR submission mode (draft | open)",
           value: "submitBehaviour",
-          description: "How flo opens PRs (draft or ready for review).",
+          description: "Whether `flo submit` opens PRs as drafts or ready for review.",
         },
         {
-          name: "PR description",
+          name: "PR description template",
           value: "prDescription",
-          description: "Template flo submit uses as the PR body.",
+          description: "Markdown body flo submit fills new PRs with.",
+        },
+        {
+          name: "Open PR in browser after submit",
+          value: "browserBehaviour",
+          description: "Pop the PR URL automatically — always, only for new PRs, or never.",
         },
         { name: "Back", value: "back" },
         { name: "Exit", value: "exit" },
@@ -371,14 +403,14 @@ async function askPrBodyAction(hasTemplate: boolean): Promise<PrBodyAction> {
       message: "PR description template",
       choices: [
         {
-          name: "Override",
+          name: "Edit existing template",
           value: "override",
           description: hasTemplate
             ? "Open the current template in your editor."
             : "No template yet — seed a starter and open it.",
         },
         {
-          name: "New",
+          name: "Start from scratch",
           value: "new",
           description: "Reset to the starter template, then open it.",
         },
@@ -414,6 +446,10 @@ async function submitSettingsSection(working: FloConfig): Promise<SectionResult>
       const next = await updateFields(working, ["prMode"]);
       await writeAndReport(next);
       working = next;
+    } else if (action === "browserBehaviour") {
+      const next = await updateFields(working, ["openBrowser"]);
+      await writeAndReport(next);
+      working = next;
     } else if (action === "prDescription") {
       const result = await updatePrTemplate();
       if (result === "exit") return { cfg: working, exit: true };
@@ -441,6 +477,7 @@ async function writeAndReport(cfg: FloConfig): Promise<void> {
       template,
       user,
       prMode: cfg.pr?.mode ?? DEFAULT_PR_MODE,
+      openBrowser: cfg.pr?.openBrowser ?? DEFAULT_OPEN_BROWSER,
       hasConfigFile: true,
       configPath: path,
     },
@@ -454,13 +491,15 @@ async function writeAndReport(cfg: FloConfig): Promise<void> {
   }
 
   const prMode = cfg.pr?.mode ?? DEFAULT_PR_MODE;
+  const openBrowser = cfg.pr?.openBrowser ?? DEFAULT_OPEN_BROWSER;
   ui.sticker()
-    .heading(colors.green().bold(`Wrote ${displayPath(path)}`))
-    .add(configRow("trunk:", colors.cyan(cfg.trunk ?? "")))
-    .add(configRow("prefix:", prefix ? colors.cyan(prefix) : colors.dim("(none)")))
-    .add(configRow("pr mode:", colors.cyan(prMode)))
+    .heading(colors.green().bold("flo config saved"))
+    .add(configRow("Trunk branch:", colors.cyan(cfg.trunk ?? "")))
+    .add(configRow("Branch prefix:", prefix ? colors.cyan(prefix) : colors.dim("(none)")))
+    .add(configRow("PR submission mode:", colors.cyan(prMode)))
+    .add(configRow("Open in browser:", colors.cyan(openBrowser)))
     .add("")
-    .add(configRow("Example:", `${colors.dim(SAMPLE_SLUG)} → ${colors.bold(preview)}`))
+    .add(configRow("Branch preview:", `${colors.dim(SAMPLE_SLUG)} → ${colors.bold(preview)}`))
     .render();
 }
 

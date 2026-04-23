@@ -123,7 +123,7 @@ export async function submitCommand(): Promise<void> {
 
   const existing = await lookupPr(branch);
   const upstream = await upstreamOf(branch);
-  const { prMode } = await resolveConfig();
+  const { prMode, openBrowser } = await resolveConfig();
 
   let status: PrStatus;
   if (!existing) {
@@ -141,6 +141,7 @@ export async function submitCommand(): Promise<void> {
   if (status === "no update" && existing) {
     console.log("");
     success(`All good — nothing to submit. ${colors.cyan(existing.url)}`);
+    if (openBrowser === "always" && existing.url) await openUrl(existing.url);
     return;
   }
 
@@ -197,5 +198,8 @@ export async function submitCommand(): Promise<void> {
   console.log("");
   success(`${colors.bold(branch)}: ${link}  ${badge(status)}`);
 
-  if (prUrl) await openUrl(prUrl);
+  const shouldOpen =
+    !!prUrl &&
+    (openBrowser === "always" || (openBrowser === "new" && status === "new"));
+  if (shouldOpen) await openUrl(prUrl);
 }
