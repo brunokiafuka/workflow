@@ -1,0 +1,9 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "printWidth": 120,
+  "singleQuote": false,
+  "semi": true,
+  "sortImports": true,
+  "arrowParens": "always",
+  "ignorePatterns": ["**/*.md", "Formula/**"]
+}

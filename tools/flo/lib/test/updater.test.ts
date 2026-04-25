@@ -1,12 +1,7 @@
 import { strict as assert } from "node:assert";
 import { describe, test } from "node:test";
-import {
-  compareVersions,
-  detectInstallSource,
-  isFresh,
-  updateHint,
-  type UpdateCache,
-} from "../updater.js";
+
+import { compareVersions, detectInstallSource, isFresh, updateHint, type UpdateCache } from "../updater.js";
 
 describe("compareVersions", () => {
   test("treats equal versions as 0", () => {
@@ -67,21 +62,12 @@ describe("isFresh", () => {
 
 describe("detectInstallSource", () => {
   test("recognizes Homebrew cellar paths", () => {
-    assert.equal(
-      detectInstallSource("/opt/homebrew/Cellar/flo/0.2.0/tools/flo"),
-      "brew",
-    );
-    assert.equal(
-      detectInstallSource("/usr/local/Cellar/flo/0.1.0/tools/flo"),
-      "brew",
-    );
+    assert.equal(detectInstallSource("/opt/homebrew/Cellar/flo/0.2.0/tools/flo"), "brew");
+    assert.equal(detectInstallSource("/usr/local/Cellar/flo/0.1.0/tools/flo"), "brew");
   });
 
   test("treats anything else with a path as a git checkout", () => {
-    assert.equal(
-      detectInstallSource("/Users/bk/code/workflow/tools/flo"),
-      "git",
-    );
+    assert.equal(detectInstallSource("/Users/bk/code/workflow/tools/flo"), "git");
     assert.equal(detectInstallSource("/home/alice/workflow/tools/flo"), "git");
   });
 
@@ -96,10 +82,7 @@ describe("updateHint", () => {
   });
 
   test("git source suggests a pull + reinstall, with cd when repo root is known", () => {
-    assert.equal(
-      updateHint("git", "/Users/bk/workflow"),
-      "cd /Users/bk/workflow && git pull && ./tools/flo/install",
-    );
+    assert.equal(updateHint("git", "/Users/bk/workflow"), "cd /Users/bk/workflow && git pull && ./tools/flo/install");
     assert.equal(updateHint("git"), "git pull && ./tools/flo/install");
   });
 

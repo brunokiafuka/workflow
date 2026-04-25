@@ -1,94 +1,59 @@
 import { strict as assert } from "node:assert";
 import { homedir } from "node:os";
 import { describe, test } from "node:test";
+
 import { normalizeOrigin, prTemplatePath, userBaseDir, type SlotInfo } from "../slot.js";
 
 describe("normalizeOrigin", () => {
   describe("SSH short form (git@host:path)", () => {
     test("github canonical", () => {
-      assert.equal(
-        normalizeOrigin("git@github.com:owner/repo.git"),
-        "github.com/owner/repo",
-      );
+      assert.equal(normalizeOrigin("git@github.com:owner/repo.git"), "github.com/owner/repo");
     });
 
     test("without .git suffix", () => {
-      assert.equal(
-        normalizeOrigin("git@github.com:owner/repo"),
-        "github.com/owner/repo",
-      );
+      assert.equal(normalizeOrigin("git@github.com:owner/repo"), "github.com/owner/repo");
     });
 
     test("nested group path", () => {
-      assert.equal(
-        normalizeOrigin("git@gitlab.com:group/sub/repo.git"),
-        "gitlab.com/group/sub/repo",
-      );
+      assert.equal(normalizeOrigin("git@gitlab.com:group/sub/repo.git"), "gitlab.com/group/sub/repo");
     });
 
     test("non-git user prefix", () => {
-      assert.equal(
-        normalizeOrigin("someone@host.example:owner/repo"),
-        "host.example/owner/repo",
-      );
+      assert.equal(normalizeOrigin("someone@host.example:owner/repo"), "host.example/owner/repo");
     });
   });
 
   describe("URI form", () => {
     test("https with .git", () => {
-      assert.equal(
-        normalizeOrigin("https://github.com/owner/repo.git"),
-        "github.com/owner/repo",
-      );
+      assert.equal(normalizeOrigin("https://github.com/owner/repo.git"), "github.com/owner/repo");
     });
 
     test("https without .git", () => {
-      assert.equal(
-        normalizeOrigin("https://github.com/owner/repo"),
-        "github.com/owner/repo",
-      );
+      assert.equal(normalizeOrigin("https://github.com/owner/repo"), "github.com/owner/repo");
     });
 
     test("strips trailing slash", () => {
-      assert.equal(
-        normalizeOrigin("https://github.com/owner/repo/"),
-        "github.com/owner/repo",
-      );
+      assert.equal(normalizeOrigin("https://github.com/owner/repo/"), "github.com/owner/repo");
     });
 
     test("strips www.", () => {
-      assert.equal(
-        normalizeOrigin("https://www.github.com/owner/repo.git"),
-        "github.com/owner/repo",
-      );
+      assert.equal(normalizeOrigin("https://www.github.com/owner/repo.git"), "github.com/owner/repo");
     });
 
     test("lowercases host", () => {
-      assert.equal(
-        normalizeOrigin("HTTPS://GitHub.COM/owner/repo"),
-        "github.com/owner/repo",
-      );
+      assert.equal(normalizeOrigin("HTTPS://GitHub.COM/owner/repo"), "github.com/owner/repo");
     });
 
     test("ignores userinfo in URI", () => {
-      assert.equal(
-        normalizeOrigin("https://user:pw@github.com/owner/repo"),
-        "github.com/owner/repo",
-      );
+      assert.equal(normalizeOrigin("https://user:pw@github.com/owner/repo"), "github.com/owner/repo");
     });
 
     test("ssh:// form", () => {
-      assert.equal(
-        normalizeOrigin("ssh://git@gitlab.example.com/group/sub/repo"),
-        "gitlab.example.com/group/sub/repo",
-      );
+      assert.equal(normalizeOrigin("ssh://git@gitlab.example.com/group/sub/repo"), "gitlab.example.com/group/sub/repo");
     });
 
     test("git:// form", () => {
-      assert.equal(
-        normalizeOrigin("git://github.com/owner/repo.git"),
-        "github.com/owner/repo",
-      );
+      assert.equal(normalizeOrigin("git://github.com/owner/repo.git"), "github.com/owner/repo");
     });
   });
 
@@ -103,10 +68,7 @@ describe("normalizeOrigin", () => {
     });
 
     test("surrounding whitespace is trimmed", () => {
-      assert.equal(
-        normalizeOrigin("  git@github.com:owner/repo  "),
-        "github.com/owner/repo",
-      );
+      assert.equal(normalizeOrigin("  git@github.com:owner/repo  "), "github.com/owner/repo");
     });
   });
 
@@ -140,10 +102,7 @@ describe("normalizeOrigin", () => {
     });
 
     test("rejects unsupported chars in path", () => {
-      assert.equal(
-        normalizeOrigin("https://github.com/owner/repo with space"),
-        null,
-      );
+      assert.equal(normalizeOrigin("https://github.com/owner/repo with space"), null);
     });
   });
 });
@@ -170,10 +129,7 @@ describe("userBaseDir", () => {
   test("linux honors XDG_CONFIG_HOME when non-empty", () => {
     setPlatform("linux");
     try {
-      assert.equal(
-        userBaseDir({ XDG_CONFIG_HOME: "/tmp/xdg" }),
-        "/tmp/xdg/flo",
-      );
+      assert.equal(userBaseDir({ XDG_CONFIG_HOME: "/tmp/xdg" }), "/tmp/xdg/flo");
     } finally {
       resetPlatform();
     }
@@ -209,9 +165,6 @@ describe("prTemplatePath", () => {
       projectId: "github.com/owner/repo",
       usedOrigin: true,
     };
-    assert.equal(
-      prTemplatePath(slot),
-      "/home/u/.flo/projects/github.com/owner/repo/pr/template.md",
-    );
+    assert.equal(prTemplatePath(slot), "/home/u/.flo/projects/github.com/owner/repo/pr/template.md");
   });
 });

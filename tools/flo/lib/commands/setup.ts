@@ -1,7 +1,9 @@
 import { mkdir, stat, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
+
 import { cliui } from "@poppinss/cliui";
 import inquirer, { type DistinctQuestion } from "inquirer";
+
 import {
   DEFAULT_OPEN_BROWSER,
   DEFAULT_PR_MODE,
@@ -46,12 +48,7 @@ export type FullAnswers = {
 type ExistingAction = "update" | "overwrite" | "cancel";
 type UpdateField = "trunk" | "prefix" | "prMode" | "openBrowser";
 type SetupSection = "branchNaming" | "submitSettings" | "repoSettings" | "back" | "exit";
-type SubmitAction =
-  | "submitBehaviour"
-  | "prDescription"
-  | "browserBehaviour"
-  | "back"
-  | "exit";
+type SubmitAction = "submitBehaviour" | "prDescription" | "browserBehaviour" | "back" | "exit";
 type PrBodyAction = "override" | "new" | "back" | "exit";
 type SectionResult = { cfg: FloConfig; exit: boolean };
 
@@ -70,10 +67,7 @@ export function validatePrefix(v: string): true | string {
  * confirm. Returns true if the change should proceed. No-ops (returns true)
  * when there's no previous trunk or the value is unchanged.
  */
-export async function confirmTrunkChange(
-  oldTrunk: string | undefined,
-  newTrunk: string,
-): Promise<boolean> {
+export async function confirmTrunkChange(oldTrunk: string | undefined, newTrunk: string): Promise<boolean> {
   const prev = (oldTrunk ?? "").trim();
   if (!prev || prev === newTrunk.trim()) return true;
   warn(
@@ -262,10 +256,7 @@ export function buildConfig(a: FullAnswers): FloConfig {
   };
 }
 
-async function updateFields(
-  existing: FloConfig,
-  fields: UpdateField[],
-): Promise<FloConfig> {
+async function updateFields(existing: FloConfig, fields: UpdateField[]): Promise<FloConfig> {
   const next: FloConfig = {
     ...existing,
     branch: { ...(existing.branch ?? {}) },
@@ -291,10 +282,7 @@ async function updateFields(
   }
 
   if (fields.includes("prefix")) {
-    const currentPrefix = prefixFromTemplate(
-      existing.branch?.template,
-      existing.branch?.user ?? "",
-    );
+    const currentPrefix = prefixFromTemplate(existing.branch?.template, existing.branch?.user ?? "");
     const { usePrefix } = await inquirer.prompt<{ usePrefix: boolean }>([
       {
         type: "confirm",

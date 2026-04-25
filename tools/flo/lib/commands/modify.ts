@@ -1,4 +1,5 @@
 import { cliui } from "@poppinss/cliui";
+
 import { git, gitInherit, hasUnstagedChanges } from "../git.js";
 import { ensureOffTrunk, isOnTrunk, suggestBranchName } from "../guards.js";
 import { detectTrunk } from "../trunk.js";

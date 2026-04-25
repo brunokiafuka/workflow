@@ -13,21 +13,21 @@
  *
  * Requires: node 18+, git (optional, for branch), gh (optional, for PR).
  */
-const fs = require('fs');
-const os = require('os');
-const path = require('path');
-const { execFileSync } = require('child_process');
+const fs = require("fs");
+const os = require("os");
+const path = require("path");
+const { execFileSync } = require("child_process");
 
 function getName() {
   const override = process.env.CLAUDE_STATUSLINE_NAME;
   if (override && override.trim()) return override.trim();
-  const user = process.env.USER || process.env.USERNAME || '';
+  const user = process.env.USER || process.env.USERNAME || "";
   const first = user.split(/[._\-\s]/)[0].toLowerCase();
-  return first || 'friend';
+  return first || "friend";
 }
 
-const RESET = '\x1b[0m';
-const DIM = '\x1b[2m';
+const RESET = "\x1b[0m";
+const DIM = "\x1b[2m";
 const rgb = (r, g, b) => `\x1b[38;2;${r};${g};${b}m`;
 const PURPLE = rgb(196, 146, 233);
 const CYAN = rgb(125, 207, 255);
@@ -38,18 +38,29 @@ const BLUE = rgb(108, 171, 247);
 const GRAY = rgb(130, 139, 154);
 
 function readStdin() {
-  try { return JSON.parse(fs.readFileSync(0, 'utf8')); } catch { return {}; }
+  try {
+    return JSON.parse(fs.readFileSync(0, "utf8"));
+  } catch {
+    return {};
+  }
 }
 
 function parseTranscript(p) {
   const totals = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 };
-  let lastContext = 0, modelId = null, firstTs = null, lastTs = null;
+  let lastContext = 0,
+    modelId = null,
+    firstTs = null,
+    lastTs = null;
   if (!p || !fs.existsSync(p)) return { totals, lastContext, modelId, firstTs, lastTs };
   try {
-    for (const line of fs.readFileSync(p, 'utf8').split('\n')) {
+    for (const line of fs.readFileSync(p, "utf8").split("\n")) {
       if (!line.trim()) continue;
       let entry;
-      try { entry = JSON.parse(line); } catch { continue; }
+      try {
+        entry = JSON.parse(line);
+      } catch {
+        continue;
+      }
       const ts = entry.timestamp ? Date.parse(entry.timestamp) : NaN;
       if (Number.isFinite(ts)) {
         if (firstTs === null) firstTs = ts;
@@ -57,14 +68,12 @@ function parseTranscript(p) {
       }
       const u = entry?.message?.usage;
       if (!u) continue;
-      totals.input      += u.input_tokens              || 0;
-      totals.output     += u.output_tokens             || 0;
-      totals.cacheRead  += u.cache_read_input_tokens   || 0;
+      totals.input += u.input_tokens || 0;
+      totals.output += u.output_tokens || 0;
+      totals.cacheRead += u.cache_read_input_tokens || 0;
       totals.cacheWrite += u.cache_creation_input_tokens || 0;
       if (entry.message.model) modelId = entry.message.model;
-      lastContext = (u.input_tokens || 0)
-                  + (u.cache_read_input_tokens || 0)
-                  + (u.cache_creation_input_tokens || 0);
+      lastContext = (u.input_tokens || 0) + (u.cache_read_input_tokens || 0) + (u.cache_creation_input_tokens || 0);
     }
   } catch {}
   return { totals, lastContext, modelId, firstTs, lastTs };
@@ -74,16 +83,16 @@ function findGitBranch(startDir) {
   if (!startDir) return null;
   let dir = startDir;
   while (true) {
-    const gitPath = path.join(dir, '.git');
+    const gitPath = path.join(dir, ".git");
     try {
       const stat = fs.statSync(gitPath);
       let headDir = gitPath;
       if (stat.isFile()) {
-        const m = fs.readFileSync(gitPath, 'utf8').match(/^gitdir:\s*(.+)$/m);
+        const m = fs.readFileSync(gitPath, "utf8").match(/^gitdir:\s*(.+)$/m);
         if (!m) break;
         headDir = path.isAbsolute(m[1]) ? m[1] : path.join(dir, m[1]);
       }
-      const head = fs.readFileSync(path.join(headDir, 'HEAD'), 'utf8').trim();
+      const head = fs.readFileSync(path.join(headDir, "HEAD"), "utf8").trim();
       const ref = head.match(/^ref: refs\/heads\/(.+)$/);
       return ref ? ref[1] : head.slice(0, 7);
     } catch {}
@@ -166,13 +175,13 @@ const GREETINGS = {
 };
 
 function bucketFor(h) {
-  if (h < 5)  return 'deadOfNight';
-  if (h < 8)  return 'earlyMorning';
-  if (h < 12) return 'morning';
-  if (h < 14) return 'lunch';
-  if (h < 17) return 'afternoon';
-  if (h < 21) return 'evening';
-  return 'lateNight';
+  if (h < 5) return "deadOfNight";
+  if (h < 8) return "earlyMorning";
+  if (h < 12) return "morning";
+  if (h < 14) return "lunch";
+  if (h < 17) return "afternoon";
+  if (h < 21) return "evening";
+  return "lateNight";
 }
 
 function hashStr(s) {
@@ -187,21 +196,19 @@ function hashStr(s) {
 function pickGreeting({ sessionId, name, hour }) {
   const bucket = bucketFor(hour);
   const pool = GREETINGS[bucket];
-  const seed = `${sessionId || 'anon'}|${bucket}`;
+  const seed = `${sessionId || "anon"}|${bucket}`;
   const template = pool[hashStr(seed) % pool.length];
-  return template
-    .replaceAll('{name}', name)
-    .replaceAll('{hour}', String(hour));
+  return template.replaceAll("{name}", name).replaceAll("{hour}", String(hour));
 }
 
 function fmtTokens(n) {
-  if (!n) return '0';
+  if (!n) return "0";
   if (n < 1000) return `${n}`;
   if (n < 1_000_000) return `${(n / 1000).toFixed(1)}k`;
   return `${(n / 1_000_000).toFixed(2)}M`;
 }
 
-function contextCap(modelId = '') {
+function contextCap(modelId = "") {
   return /\[1m\]|-1m\b/i.test(modelId) ? 1_000_000 : 200_000;
 }
 
@@ -213,49 +220,59 @@ function ctxColor(pct) {
 
 function getGithubRepo(cwd) {
   try {
-    const url = execFileSync('git', ['-C', cwd, 'remote', 'get-url', 'origin'], {
-      encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 500,
+    const url = execFileSync("git", ["-C", cwd, "remote", "get-url", "origin"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+      timeout: 500,
     }).trim();
     const m = url.match(/github\.com[:\/]([^\/]+)\/([^\/]+?)(?:\.git)?$/);
     return m ? `${m[1]}/${m[2]}` : null;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
-const PR_CACHE = path.join(os.homedir(), '.claude', '.statusline-pr-cache.json');
+const PR_CACHE = path.join(os.homedir(), ".claude", ".statusline-pr-cache.json");
 const PR_CACHE_TTL_MS = 5 * 60_000;
 
 function getPr(cwd, branch) {
   if (!branch) return null;
   const key = `${cwd}#${branch}`;
   let cache = {};
-  try { cache = JSON.parse(fs.readFileSync(PR_CACHE, 'utf8')); } catch {}
+  try {
+    cache = JSON.parse(fs.readFileSync(PR_CACHE, "utf8"));
+  } catch {}
   const hit = cache[key];
   if (hit && Date.now() - hit.at < PR_CACHE_TTL_MS) return hit.pr;
 
   let pr = null;
   try {
-    const out = execFileSync(
-      'gh', ['pr', 'view', '--json', 'number,title,state,isDraft'],
-      { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 3000 },
-    );
+    const out = execFileSync("gh", ["pr", "view", "--json", "number,title,state,isDraft"], {
+      cwd,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+      timeout: 3000,
+    });
     pr = JSON.parse(out);
   } catch {}
 
   cache[key] = { at: Date.now(), pr };
-  try { fs.writeFileSync(PR_CACHE, JSON.stringify(cache)); } catch {}
+  try {
+    fs.writeFileSync(PR_CACHE, JSON.stringify(cache));
+  } catch {}
   return pr;
 }
 
 function truncate(s, n) {
-  if (!s) return '';
-  return s.length > n ? s.slice(0, n - 1) + '…' : s;
+  if (!s) return "";
+  return s.length > n ? s.slice(0, n - 1) + "…" : s;
 }
 
 function bar(pct, width = 10) {
   const clamped = Math.max(0, Math.min(100, pct));
   let filled = Math.floor((clamped / 100) * width);
   if (clamped > 0 && filled === 0) filled = 1;
-  return '█'.repeat(filled) + '▒'.repeat(width - filled);
+  return "█".repeat(filled) + "▒".repeat(width - filled);
 }
 
 function fmtDuration(ms) {
@@ -270,8 +287,8 @@ function fmtDuration(ms) {
 
 const data = readStdin();
 const cwd = data.workspace?.current_dir || data.cwd || process.cwd();
-const modelDisplay = data.model?.display_name || 'Claude';
-const stdinModelId = data.model?.id || '';
+const modelDisplay = data.model?.display_name || "Claude";
+const stdinModelId = data.model?.id || "";
 
 const { totals, lastContext, modelId: transcriptModel, firstTs, lastTs } = parseTranscript(data.transcript_path);
 const effectiveModel = transcriptModel || stdinModelId;
@@ -293,8 +310,8 @@ const topParts = [];
 topParts.push(ghRepo ? `${BLUE}${ghRepo}${RESET}` : `${BLUE}📁 ${dirName}${RESET}`);
 if (branch) topParts.push(`${YELLOW}⎇ ${branch}${RESET}`);
 if (pr) {
-  const stateColor = pr.isDraft ? GRAY : pr.state === 'OPEN' ? GREEN : PURPLE;
-  const stateLabel = pr.isDraft ? 'draft' : pr.state.toLowerCase();
+  const stateColor = pr.isDraft ? GRAY : pr.state === "OPEN" ? GREEN : PURPLE;
+  const stateLabel = pr.isDraft ? "draft" : pr.state.toLowerCase();
   topParts.push(`${stateColor}#${pr.number} ${truncate(pr.title, 45)} ${DIM}(${stateLabel})${RESET}`);
 } else if (ghRepo && branch) {
   topParts.push(`${DIM}no PR${RESET}`);
@@ -318,8 +335,8 @@ const bottomParts = [`${YELLOW}${greetingText}${RESET}`];
 const dur = fmtDuration(durationMs);
 if (dur) bottomParts.push(`${DIM}⏱ ${dur}${RESET}`);
 
-const line1 = `${frame('┌')} ${topParts.join(` ${sep} `)}`;
-const line2 = `${frame('│')} ${midParts.join(` ${sep} `)}`;
-const line3 = `${frame('└')} ${bottomParts.join(` ${sep} `)}`;
+const line1 = `${frame("┌")} ${topParts.join(` ${sep} `)}`;
+const line2 = `${frame("│")} ${midParts.join(` ${sep} `)}`;
+const line3 = `${frame("└")} ${bottomParts.join(` ${sep} `)}`;
 
 process.stdout.write(`${line1}\n${line2}\n${line3}`);

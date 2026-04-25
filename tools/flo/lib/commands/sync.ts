@@ -1,4 +1,5 @@
 import { cliui } from "@poppinss/cliui";
+
 import { branchExists, currentBranch, git, gitFetch, hasUncommittedChanges, localBranches } from "../git.js";
 import { detectTrunk, findMergedBranches, ghMergedHeads } from "../trunk.js";
 import { colors, conflictHint, fail, multiSelect, success, warn } from "../ui.js";

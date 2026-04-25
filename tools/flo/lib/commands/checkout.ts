@@ -1,7 +1,7 @@
 import { cliui } from "@poppinss/cliui";
 import enquirer from "enquirer";
-
 import { execa } from "execa";
+
 import { branchExists, currentBranch, git, localBranches } from "../git.js";
 import { detectTrunk } from "../trunk.js";
 import { colors, fail, success } from "../ui.js";
@@ -13,9 +13,7 @@ type Row = { branch: string; sha: string; subject: string; isTrunk: boolean };
 
 const TRUNK_TAG = "  (trunk)";
 
-async function headInfo(
-  branch: string,
-): Promise<{ sha: string; subject: string }> {
+async function headInfo(branch: string): Promise<{ sha: string; subject: string }> {
   const r = await git(["log", "-1", "--pretty=%h\t%s", branch], {
     allowFail: true,
   });
@@ -28,26 +26,13 @@ function truncate(s: string, max: number): string {
 }
 
 /** One `gh pr list` call → map of branch → open PR number. */
-async function fetchOpenPrs(
-  branches: string[],
-): Promise<{ map: Map<string, number>; ghFailed: boolean }> {
+async function fetchOpenPrs(branches: string[]): Promise<{ map: Map<string, number>; ghFailed: boolean }> {
   const map = new Map<string, number>();
   if (branches.length === 0) return { map, ghFailed: false };
   try {
-    const r = await execa(
-      "gh",
-      [
-        "pr",
-        "list",
-        "--json",
-        "number,headRefName",
-        "--state",
-        "open",
-        "--limit",
-        "200",
-      ],
-      { reject: false },
-    );
+    const r = await execa("gh", ["pr", "list", "--json", "number,headRefName", "--state", "open", "--limit", "200"], {
+      reject: false,
+    });
     if (r.exitCode !== 0) return { map, ghFailed: true };
     const list = JSON.parse(r.stdout) as Array<{
       number: number;
@@ -96,56 +81,39 @@ export async function checkoutCommand(): Promise<void> {
   // Render a little tree: branches stacked above trunk, connected by │.
   const maxFirstCol = Math.min(
     48,
-    Math.max(
-      1,
-      ...rows.map((r) =>
-        r.isTrunk ? r.branch.length + TRUNK_TAG.length : r.branch.length,
-      ),
-    ),
+    Math.max(1, ...rows.map((r) => (r.isTrunk ? r.branch.length + TRUNK_TAG.length : r.branch.length))),
   );
   const maxPrLen = Math.max(0, ...rows.map((r) => prLabel(r.branch).length));
   const cols = process.stdout.columns;
   const subjectCap =
-    cols && cols > 0
-      ? Math.max(20, Math.min(90, cols - 12 - maxFirstCol - (maxPrLen ? maxPrLen + 2 : 0)))
-      : 50;
+    cols && cols > 0 ? Math.max(20, Math.min(90, cols - 12 - maxFirstCol - (maxPrLen ? maxPrLen + 2 : 0))) : 50;
 
   console.log("");
   if (rows.length) {
     const headBranch = "Branch".padEnd(maxFirstCol);
     const headPr = maxPrLen ? "  " + "PR".padEnd(maxPrLen) : "";
     const headMeta = "  " + "Last commit";
-    console.log(
-      "  " +
-        "  " +
-        colors.dim(headBranch + headPr + headMeta),
-    );
+    console.log("  " + "  " + colors.dim(headBranch + headPr + headMeta));
   }
   rows.forEach((r, i) => {
     const isLast = i === rows.length - 1;
     const marker = r.branch === current ? colors.cyan("●") : colors.dim("○");
     const name = r.branch === current ? colors.bold(r.branch) : r.branch;
     const plain = r.isTrunk ? r.branch + TRUNK_TAG : r.branch;
-    const firstCol = plain
-      .padEnd(maxFirstCol, " ")
-      .replace(r.branch, name)
-      .replace(TRUNK_TAG, colors.dim(TRUNK_TAG));
+    const firstCol = plain.padEnd(maxFirstCol, " ").replace(r.branch, name).replace(TRUNK_TAG, colors.dim(TRUNK_TAG));
     const pr = prLabel(r.branch);
     const prCell = maxPrLen
       ? pr
         ? pr.padEnd(maxPrLen, " ").replace(pr, colors.magenta(pr))
         : colors.dim("—") + " ".repeat(maxPrLen - 1)
       : "";
-    const meta = r.sha
-      ? colors.dim(`${r.sha}  ${truncate(r.subject, subjectCap)}`)
-      : "";
+    const meta = r.sha ? colors.dim(`${r.sha}  ${truncate(r.subject, subjectCap)}`) : "";
     const parts = [`  ${marker} ${firstCol}`, prCell, meta].filter(Boolean);
     console.log(parts.join("  "));
 
     if (!isLast) {
       // Spine extends through branch + PR columns (2 + 1 + 1 + firstCol + gap + pr).
-      const spinePad =
-        2 + maxFirstCol + (maxPrLen ? 2 + maxPrLen : 0);
+      const spinePad = 2 + maxFirstCol + (maxPrLen ? 2 + maxPrLen : 0);
       console.log(`  ${colors.dim("│" + " ".repeat(spinePad))}`);
     }
   });
@@ -166,31 +134,24 @@ export async function checkoutCommand(): Promise<void> {
 
   const choices = rows.map((r) => {
     const pr = prLabel(r.branch);
-    const hint = pr
-      ? pr
-      : r.isTrunk
-        ? "(trunk)"
-        : maxPrLen
-          ? "—"
-          : "";
+    const hint = pr ? pr : r.isTrunk ? "(trunk)" : maxPrLen ? "—" : "";
     return {
       name: r.branch,
       message: r.branch,
       ...(hint ? { hint } : {}),
     };
   });
-  const limit = Math.min(
-    rows.length,
-    Math.max(10, Math.min(18, (process.stdout.rows ?? 30) - 8)),
-  );
+  const limit = Math.min(rows.length, Math.max(10, Math.min(18, (process.stdout.rows ?? 30) - 8)));
   const res = (await prompt({
     type: "autocomplete",
     name: "v",
-    message:
-      "Checkout which branch? (type to filter, ↑↓ scroll) ",
+    message: "Checkout which branch? (type to filter, ↑↓ scroll) ",
     choices,
     limit,
-    initial: Math.max(0, rows.findIndex((r) => r.branch === current)),
+    initial: Math.max(
+      0,
+      rows.findIndex((r) => r.branch === current),
+    ),
   } as never)) as { v: string };
 
   const target = res.v;
@@ -206,15 +167,11 @@ export async function checkoutCommand(): Promise<void> {
       const co = await git(["checkout", "--quiet", target], {
         allowFail: true,
       });
-      if (co.exitCode !== 0)
-        return task.error(co.stderr.trim() || "checkout failed");
+      if (co.exitCode !== 0) return task.error(co.stderr.trim() || "checkout failed");
       return "switched";
     })
     .run();
 
-  const prNote =
-    prOnTarget != null
-      ? `  ${colors.dim(`·  PR#${prOnTarget}`)}`
-      : "";
+  const prNote = prOnTarget != null ? `  ${colors.dim(`·  PR#${prOnTarget}`)}` : "";
   success(`Switched to ${colors.bold(target)}${prNote}`);
 }

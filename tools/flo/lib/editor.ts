@@ -11,9 +11,7 @@ import { execa } from "execa";
  *      until the tab is closed — otherwise flo would race the user's edits.
  *   3. `vi` as last resort.
  */
-export function resolveEditorCommand(
-  env: NodeJS.ProcessEnv = process.env,
-): string[] {
+export function resolveEditorCommand(env: NodeJS.ProcessEnv = process.env): string[] {
   const explicit = (env.VISUAL || env.EDITOR || "").trim();
   if (explicit) return explicit.split(/\s+/);
 

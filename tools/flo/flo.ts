@@ -1,5 +1,6 @@
 #!/usr/bin/env -S tsx
 import inquirer from "inquirer";
+
 import {
   addCommand,
   checkoutCommand,
@@ -194,9 +195,7 @@ async function main() {
   // Commands that don't need flo config — skip the setup prompt entirely.
   const NO_CONFIG_NEEDED = new Set(["setup", "run", "init"]);
   if (!NO_CONFIG_NEEDED.has(cmd) && (await loadConfig()) === null) {
-    console.log(
-      c.dim(`  No flo config found for this repo (expected at ${c.b(await configLabel())}).`),
-    );
+    console.log(c.dim(`  No flo config found for this repo (expected at ${c.b(await configLabel())}).`));
     if (process.stdout.isTTY) {
       const { runSetup } = await inquirer.prompt<{ runSetup: boolean }>([
         {
@@ -210,14 +209,10 @@ async function main() {
         await setupCommand();
         console.log("");
       } else {
-        console.log(
-          c.dim(`  Carrying on with defaults. Run ${c.cyan("flo setup")} later when you're ready.`),
-        );
+        console.log(c.dim(`  Carrying on with defaults. Run ${c.cyan("flo setup")} later when you're ready.`));
       }
     } else {
-      console.log(
-        c.dim(`  Run ${c.cyan("flo setup")} to configure it.`),
-      );
+      console.log(c.dim(`  Run ${c.cyan("flo setup")} to configure it.`));
     }
   }
 

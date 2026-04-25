@@ -1,5 +1,6 @@
 import { strict as assert } from "node:assert";
 import { describe, test } from "node:test";
+
 import { listRecipeNames, parseRecipes, resolveRecipe } from "../recipes.js";
 
 const FIXTURE = `
@@ -47,10 +48,7 @@ commands:
     command: echo hi
     interactive: "yes"
 `;
-    assert.throws(
-      () => parseRecipes(src, "/x/flo.yml"),
-      /interactive must be a boolean/,
-    );
+    assert.throws(() => parseRecipes(src, "/x/flo.yml"), /interactive must be a boolean/);
   });
 
   test("missing commands key yields empty map", () => {
@@ -59,10 +57,7 @@ commands:
   });
 
   test("rejects non-object command entry", () => {
-    assert.throws(
-      () => parseRecipes(`commands:\n  test: "nope"\n`, "/x/flo.yml"),
-      /commands\.test must be an object/,
-    );
+    assert.throws(() => parseRecipes(`commands:\n  test: "nope"\n`, "/x/flo.yml"), /commands\.test must be an object/);
   });
 
   test("requires a string command", () => {
@@ -121,10 +116,7 @@ init:
   });
 
   test("non-list init throws", () => {
-    assert.throws(
-      () => parseRecipes(`init: not-a-list\n`, "/x/flo.yml"),
-      /init must be a list/,
-    );
+    assert.throws(() => parseRecipes(`init: not-a-list\n`, "/x/flo.yml"), /init must be a list/);
   });
 
   test("step map with multiple keys throws", () => {
@@ -135,10 +127,7 @@ init:
     b:
       run: echo b
 `;
-    assert.throws(
-      () => parseRecipes(src, "/x/flo.yml"),
-      /init\[0\] must have exactly one step id/,
-    );
+    assert.throws(() => parseRecipes(src, "/x/flo.yml"), /init\[0\] must have exactly one step id/);
   });
 
   test("missing run throws", () => {
@@ -156,10 +145,7 @@ init:
   - x:
       run: echo b
 `;
-    assert.throws(
-      () => parseRecipes(src, "/x/flo.yml"),
-      /init step "x" is defined twice/,
-    );
+    assert.throws(() => parseRecipes(src, "/x/flo.yml"), /init step "x" is defined twice/);
   });
 });
 

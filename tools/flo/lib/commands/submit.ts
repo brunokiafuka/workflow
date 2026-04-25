@@ -1,6 +1,8 @@
 import { stat } from "node:fs/promises";
+
 import { cliui } from "@poppinss/cliui";
 import { execa } from "execa";
+
 import { resolveConfig } from "../config.js";
 import { currentBranch, git, hasUncommittedChanges, upstreamOf } from "../git.js";
 import { prTemplatePath, resolveSlot } from "../slot.js";
@@ -66,10 +68,7 @@ async function hasNonEmptyFile(path: string): Promise<boolean> {
  * a template is set.
  */
 export async function firstCommitSubject(trunk: string): Promise<string> {
-  const since = await git(
-    ["log", `${trunk}..HEAD`, "--reverse", "--format=%s", "-n", "1"],
-    { allowFail: true },
-  );
+  const since = await git(["log", `${trunk}..HEAD`, "--reverse", "--format=%s", "-n", "1"], { allowFail: true });
   const subject = since.stdout.trim();
   if (subject) return subject;
   return (await git(["log", "-1", "--format=%s", "HEAD"])).stdout.trim();
@@ -171,7 +170,7 @@ export async function submitCommand(): Promise<void> {
         return task.error(r.stderr?.trim().split("\n").pop() ?? "gh pr create failed");
       }
       const match = r.stdout.match(/https?:\/\/\S+/);
-      prUrl = match ? match[0] : (await lookupPr(branch))?.url ?? "";
+      prUrl = match ? match[0] : ((await lookupPr(branch))?.url ?? "");
       return isDraft ? "draft created" : "created";
     });
   } else if (status === "update") {
@@ -198,8 +197,6 @@ export async function submitCommand(): Promise<void> {
   console.log("");
   success(`${colors.bold(branch)}: ${link}  ${badge(status)}`);
 
-  const shouldOpen =
-    !!prUrl &&
-    (openBrowser === "always" || (openBrowser === "new" && status === "new"));
+  const shouldOpen = !!prUrl && (openBrowser === "always" || (openBrowser === "new" && status === "new"));
   if (shouldOpen) await openUrl(prUrl);
 }

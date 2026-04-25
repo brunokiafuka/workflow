@@ -1,13 +1,7 @@
 import { cliui } from "@poppinss/cliui";
 import { execa } from "execa";
-import {
-  branchExists,
-  currentBranch,
-  git,
-  gitFetch,
-  gitInherit,
-  hasUncommittedChanges,
-} from "../git.js";
+
+import { branchExists, currentBranch, git, gitFetch, gitInherit, hasUncommittedChanges } from "../git.js";
 import { detectTrunk } from "../trunk.js";
 import { c, conflictHint, fail, info, logCmd, success } from "../ui.js";
 
@@ -98,9 +92,7 @@ export async function getCommand(branch: string | undefined): Promise<void> {
 async function getFromURL(url: string): Promise<void> {
   const m = url.match(/github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)/i);
   if (!m) {
-    fail(
-      `'${url}' doesn't look like a PR URL — expected github.com/owner/repo/pull/<number>`,
-    );
+    fail(`'${url}' doesn't look like a PR URL — expected github.com/owner/repo/pull/<number>`);
   }
   const [, owner, repo, num] = m!;
   await ghCheckoutPR(url, `${owner}/${repo}#${num}`);
@@ -114,9 +106,7 @@ async function getFromFork(ref: string): Promise<void> {
     .add(`Finding PR for ${ref}`, async (task) => {
       const found = await findPRByHeadRef(ref);
       if (found == null) {
-        return task.error(
-          `no PR found with head '${ref}' — check the ref or run: gh pr checkout <number>`,
-        );
+        return task.error(`no PR found with head '${ref}' — check the ref or run: gh pr checkout <number>`);
       }
       prNumber = found;
       return `PR #${found}`;
@@ -137,9 +127,7 @@ async function ghCheckoutPR(identifier: string, label: string): Promise<void> {
       });
       if (r.exitCode !== 0) {
         failed = true;
-        return task.error(
-          `gh pr checkout failed — ${String(r.stderr ?? "").trim() || "unknown error"}`,
-        );
+        return task.error(`gh pr checkout failed — ${String(r.stderr ?? "").trim() || "unknown error"}`);
       }
       return "checked out";
     })
@@ -172,7 +160,7 @@ async function findPRByHeadRef(ref: string): Promise<number | null> {
       "api",
       `repos/{owner}/{repo}/pulls?state=all&head=${ref}&per_page=5`,
       "--jq",
-      "sort_by(.state != \"open\") | .[0].number // empty",
+      'sort_by(.state != "open") | .[0].number // empty',
     ],
     { reject: false },
   );

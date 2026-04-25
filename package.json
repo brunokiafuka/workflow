@@ -3,7 +3,15 @@
   "private": true,
   "description": "my personal workflow tools and scripts. Each tool lives under tools/<name>.",
   "scripts": {
-    "install:flo": "bash tools/flo/install"
+    "install:flo": "bash tools/flo/install",
+    "lint": "oxlint tools/",
+    "lint:fix": "oxlint --fix tools/",
+    "format": "oxfmt tools/",
+    "format:check": "oxfmt --check tools/"
   },
-  "packageManager": "pnpm@9.15.0"
+  "packageManager": "pnpm@9.15.0",
+  "devDependencies": {
+    "oxfmt": "^0.46.0",
+    "oxlint": "^1.61.0"
+  }
 }
