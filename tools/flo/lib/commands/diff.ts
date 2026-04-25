@@ -43,7 +43,7 @@ export async function diffCommand(rawFlags: string[]): Promise<void> {
       summary = statLines.at(-1)?.trim() ?? "";
       return summary || `${commits} commit${commits !== 1 ? "s" : ""}`;
     })
-    .addIf(copy, "Capturing diff", async (task) => {
+    .addIf(copy, "Capturing diff", async () => {
       const args = branch === trunk ? ["diff", ...flags] : ["diff", `${trunk}...HEAD`, ...flags];
       const r = await git(args, { allowFail: true });
       copyBody = r.stdout;

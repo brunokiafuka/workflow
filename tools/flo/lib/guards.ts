@@ -10,11 +10,11 @@ export function slugify(message: string): string {
       .trim()
       .toLowerCase()
       // strip git-invalid chars (~^:?*[\)
-      .replace(/[~^:?*\[\\]+/g, "")
+      .replace(/[~^:?*[\\]+/g, "")
       // collapse whitespace to single underscore
       .replace(/\s+/g, "_")
       // drop stray punctuation except _-/.
-      .replace(/[^a-z0-9_\-\/.]/g, "")
+      .replace(/[^a-z0-9_\-/.]/g, "")
       .replace(/_+/g, "_")
       .replace(/^[_\-.]+|[_\-.]+$/g, "")
       .slice(0, 60)

@@ -13,10 +13,10 @@
  *
  * Requires: node 18+, git (optional, for branch), gh (optional, for PR).
  */
-const fs = require("fs");
-const os = require("os");
-const path = require("path");
-const { execFileSync } = require("child_process");
+const fs = require("node:fs");
+const os = require("node:os");
+const path = require("node:path");
+const { execFileSync } = require("node:child_process");
 
 function getName() {
   const override = process.env.CLAUDE_STATUSLINE_NAME;
@@ -26,9 +26,9 @@ function getName() {
   return first || "friend";
 }
 
-const RESET = "\x1b[0m";
-const DIM = "\x1b[2m";
-const rgb = (r, g, b) => `\x1b[38;2;${r};${g};${b}m`;
+const RESET = "\x1B[0m";
+const DIM = "\x1B[2m";
+const rgb = (r, g, b) => `\x1B[38;2;${r};${g};${b}m`;
 const PURPLE = rgb(196, 146, 233);
 const CYAN = rgb(125, 207, 255);
 const GREEN = rgb(152, 195, 121);
@@ -187,7 +187,7 @@ function bucketFor(h) {
 function hashStr(s) {
   let h = 2166136261 >>> 0;
   for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i);
+    h ^= s.codePointAt(i);
     h = Math.imul(h, 16777619) >>> 0;
   }
   return h;
@@ -225,7 +225,7 @@ function getGithubRepo(cwd) {
       stdio: ["ignore", "pipe", "ignore"],
       timeout: 500,
     }).trim();
-    const m = url.match(/github\.com[:\/]([^\/]+)\/([^\/]+?)(?:\.git)?$/);
+    const m = url.match(/github\.com[:/]([^/]+)\/([^/]+?)(?:\.git)?$/);
     return m ? `${m[1]}/${m[2]}` : null;
   } catch {
     return null;

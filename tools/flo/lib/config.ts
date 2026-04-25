@@ -74,7 +74,7 @@ async function loadSlotConfig(slot: SlotInfo): Promise<FloConfig | null> {
     const parsed = YAML.parse(raw);
     return (parsed ?? {}) as FloConfig;
   } catch (e) {
-    throw new Error(`Couldn't parse ${displayPath(slot.configPath)}: ${(e as Error).message}`);
+    throw new Error(`Couldn't parse ${displayPath(slot.configPath)}: ${(e as Error).message}`, { cause: e });
   }
 }
 
@@ -89,7 +89,7 @@ async function loadLegacyConfig(): Promise<LegacyHit | null> {
     try {
       return { cfg: JSON.parse(raw) as FloConfig, path };
     } catch (e) {
-      throw new Error(`Couldn't parse ${displayPath(path)}: ${(e as Error).message}`);
+      throw new Error(`Couldn't parse ${displayPath(path)}: ${(e as Error).message}`, { cause: e });
     }
   }
   return null;
