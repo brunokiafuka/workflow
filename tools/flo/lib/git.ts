@@ -1,7 +1,8 @@
 import { spawn } from "node:child_process";
 
 import cliProgress from "cli-progress";
-import { execa, ExecaError } from "execa";
+import type { ExecaError } from "execa";
+import { execa } from "execa";
 
 import { colors } from "./ui.js";
 

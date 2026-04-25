@@ -4,3 +4,6 @@ node_modules
 .claude
 # flo — per-dev config
 .flo/
+
+oxlint.log
+oxfmt.log

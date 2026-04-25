@@ -25,13 +25,12 @@ export async function runCommand(nameOrAlias: string | undefined, extraArgs: str
   const recipe = resolveRecipe(file, nameOrAlias);
   if (!recipe) {
     const names = listRecipeNames(file);
-    const list = names.length
-      ? names.map((n) => `    ${colors.cyan(n)}`).join("\n")
-      : `    ${colors.dim("(none defined)")}`;
+    const list =
+      names.length > 0 ? names.map((n) => `    ${colors.cyan(n)}`).join("\n") : `    ${colors.dim("(none defined)")}`;
     fail(`No recipe "${nameOrAlias}" in ${colors.bold("flo.yml")}.\n\n  Available:\n${list}`);
   }
 
-  const extras = extraArgs.length ? ` ${extraArgs.map(shellQuote).join(" ")}` : "";
+  const extras = extraArgs.length > 0 ? ` ${extraArgs.map(shellQuote).join(" ")}` : "";
   const full = `${recipe.command}${extras}`;
 
   if (recipe.interactive) {

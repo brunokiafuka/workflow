@@ -259,8 +259,8 @@ export function buildConfig(a: FullAnswers): FloConfig {
 async function updateFields(existing: FloConfig, fields: UpdateField[]): Promise<FloConfig> {
   const next: FloConfig = {
     ...existing,
-    branch: { ...(existing.branch ?? {}) },
-    pr: { ...(existing.pr ?? {}) },
+    branch: { ...existing.branch },
+    pr: { ...existing.pr },
   };
 
   if (fields.includes("trunk")) {

@@ -50,7 +50,9 @@ export function parseRecipes(raw: string, path: string): RecipesFile {
   try {
     parsed = YAML.parse(raw);
   } catch (e) {
-    throw new Error(`Couldn't parse ${path}: ${(e as Error).message}`);
+    throw new Error(`Couldn't parse ${path}: ${(e as Error).message}`, {
+      cause: e,
+    });
   }
   const doc = (parsed ?? {}) as {
     project?: unknown;
@@ -113,7 +115,7 @@ export function parseRecipes(raw: string, path: string): RecipesFile {
 function parseInit(raw: unknown, path: string): InitStep[] {
   if (raw === undefined || raw === null) return [];
   if (!Array.isArray(raw)) {
-    throw new Error(`${path}: init must be a list of steps`);
+    throw new TypeError(`${path}: init must be a list of steps`);
   }
   const steps: InitStep[] = [];
   const seen = new Set<string>();

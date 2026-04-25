@@ -34,10 +34,10 @@ async function fetchOpenPrs(branches: string[]): Promise<{ map: Map<string, numb
       reject: false,
     });
     if (r.exitCode !== 0) return { map, ghFailed: true };
-    const list = JSON.parse(r.stdout) as Array<{
+    const list = JSON.parse(r.stdout) as {
       number: number;
       headRefName: string;
-    }>;
+    }[];
     const wanted = new Set(branches);
     for (const pr of list) {
       if (wanted.has(pr.headRefName)) map.set(pr.headRefName, pr.number);
@@ -89,7 +89,7 @@ export async function checkoutCommand(): Promise<void> {
     cols && cols > 0 ? Math.max(20, Math.min(90, cols - 12 - maxFirstCol - (maxPrLen ? maxPrLen + 2 : 0))) : 50;
 
   console.log("");
-  if (rows.length) {
+  if (rows.length > 0) {
     const headBranch = "Branch".padEnd(maxFirstCol);
     const headPr = maxPrLen ? "  " + "PR".padEnd(maxPrLen) : "";
     const headMeta = "  " + "Last commit";
