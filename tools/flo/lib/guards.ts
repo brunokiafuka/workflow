@@ -5,18 +5,20 @@ import { c, fail, info, logCmd, promptInput } from "./ui.js";
 
 /** Turn a commit message into a safe slug (lowercased, underscore-joined). */
 export function slugify(message: string): string {
-  return message
-    .trim()
-    .toLowerCase()
-    // strip git-invalid chars (~^:?*[\)
-    .replace(/[~^:?*\[\\]+/g, "")
-    // collapse whitespace to single underscore
-    .replace(/\s+/g, "_")
-    // drop stray punctuation except _-/.
-    .replace(/[^a-z0-9_\-\/.]/g, "")
-    .replace(/_+/g, "_")
-    .replace(/^[_\-.]+|[_\-.]+$/g, "")
-    .slice(0, 60);
+  return (
+    message
+      .trim()
+      .toLowerCase()
+      // strip git-invalid chars (~^:?*[\)
+      .replace(/[~^:?*\[\\]+/g, "")
+      // collapse whitespace to single underscore
+      .replace(/\s+/g, "_")
+      // drop stray punctuation except _-/.
+      .replace(/[^a-z0-9_\-\/.]/g, "")
+      .replace(/_+/g, "_")
+      .replace(/^[_\-.]+|[_\-.]+$/g, "")
+      .slice(0, 60)
+  );
 }
 
 /** Slug + apply the configured branch template (e.g. "{user}/{date}_{slug}"). */

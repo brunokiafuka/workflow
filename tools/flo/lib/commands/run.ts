@@ -1,6 +1,8 @@
 import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
+
 import { cliui } from "@poppinss/cliui";
+
 import { listRecipeNames, loadRecipes, resolveRecipe } from "../recipes.js";
 import { colors, fail } from "../ui.js";
 
@@ -12,17 +14,12 @@ function shellQuote(arg: string): string {
   return `'${arg.replace(/'/g, "'\\''")}'`;
 }
 
-export async function runCommand(
-  nameOrAlias: string | undefined,
-  extraArgs: string[],
-): Promise<void> {
+export async function runCommand(nameOrAlias: string | undefined, extraArgs: string[]): Promise<void> {
   if (!nameOrAlias) fail("Usage: flo run <name> [...args]");
 
   const file = await loadRecipes();
   if (!file) {
-    fail(
-      `No ${colors.bold("flo.yml")} in this repo. Define commands there to use ${colors.cyan("flo run")}.`,
-    );
+    fail(`No ${colors.bold("flo.yml")} in this repo. Define commands there to use ${colors.cyan("flo run")}.`);
   }
 
   const recipe = resolveRecipe(file, nameOrAlias);

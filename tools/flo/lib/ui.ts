@@ -1,5 +1,5 @@
-import enquirer from "enquirer";
 import { cliui } from "@poppinss/cliui";
+import enquirer from "enquirer";
 
 const { prompt } = enquirer;
 const ui = cliui();
@@ -69,11 +69,7 @@ export async function confirm(message: string, initial = true): Promise<boolean>
   return res.v;
 }
 
-export async function multiSelect(
-  message: string,
-  choices: string[],
-  initiallyAll = true,
-): Promise<string[]> {
+export async function multiSelect(message: string, choices: string[], initiallyAll = true): Promise<string[]> {
   if (choices.length === 0) return [];
   const res = (await prompt({
     type: "multiselect",

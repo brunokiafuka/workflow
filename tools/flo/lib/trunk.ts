@@ -1,4 +1,5 @@
 import { execa } from "execa";
+
 import { loadConfig } from "./config.js";
 import { git, localBranches } from "./git.js";
 
@@ -9,11 +10,9 @@ import { git, localBranches } from "./git.js";
  */
 export async function ghMergedHeads(): Promise<Set<string>> {
   try {
-    const r = await execa(
-      "gh",
-      ["pr", "list", "--state", "merged", "--limit", "200", "--json", "headRefName"],
-      { reject: false },
-    );
+    const r = await execa("gh", ["pr", "list", "--state", "merged", "--limit", "200", "--json", "headRefName"], {
+      reject: false,
+    });
     if (r.exitCode !== 0) return new Set();
     const data = JSON.parse(r.stdout) as { headRefName: string }[];
     return new Set(data.map((d) => d.headRefName));
@@ -55,19 +54,17 @@ export async function findMergedBranches(trunk: string): Promise<string[]> {
   // (1) Real merges — fast path.
   const merged = await git(["branch", "--merged", trunk, "--format=%(refname:short)"]);
   const mergedSet = new Set(
-    merged.stdout.split("\n").map((s) => s.trim()).filter((s) => s && s !== trunk),
+    merged.stdout
+      .split("\n")
+      .map((s) => s.trim())
+      .filter((s) => s && s !== trunk),
   );
 
   // (3) Upstream-gone set: parse `upstream:track` per branch.
   const goneSet = new Set<string>();
-  const tracking = await git(
-    [
-      "for-each-ref",
-      "--format=%(refname:short)%09%(upstream:track)",
-      "refs/heads/",
-    ],
-    { allowFail: true },
-  );
+  const tracking = await git(["for-each-ref", "--format=%(refname:short)%09%(upstream:track)", "refs/heads/"], {
+    allowFail: true,
+  });
   if (tracking.exitCode === 0) {
     for (const line of tracking.stdout.split("\n")) {
       const [name, track] = line.split("\t");
@@ -86,7 +83,10 @@ export async function findMergedBranches(trunk: string): Promise<string[]> {
     // "-" = patch-equivalent (the typical squash-merge signature).
     const cherry = await git(["cherry", trunk, branch], { allowFail: true });
     if (cherry.exitCode !== 0) continue;
-    const lines = cherry.stdout.split("\n").map((s) => s.trim()).filter(Boolean);
+    const lines = cherry.stdout
+      .split("\n")
+      .map((s) => s.trim())
+      .filter(Boolean);
     if (lines.length === 0) continue;
     if (lines.every((l) => l.startsWith("-"))) {
       candidates.push(branch);

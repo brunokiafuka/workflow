@@ -1,7 +1,7 @@
 {
   "name": "flo",
-  "private": true,
   "version": "0.2.2",
+  "private": true,
   "description": "Your local flow orchestrator — git, PRs, and project recipes.",
   "bin": {
     "flo": "./flo"

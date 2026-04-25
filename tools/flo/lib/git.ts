@@ -1,15 +1,14 @@
 import { spawn } from "node:child_process";
-import { colors } from "./ui.js";
+
 import cliProgress from "cli-progress";
 import { execa, ExecaError } from "execa";
+
+import { colors } from "./ui.js";
 
 export type GitResult = { stdout: string; stderr: string; exitCode: number };
 
 /** Run git and capture output. Throws on non-zero unless `allowFail` is true. */
-export async function git(
-  args: string[],
-  opts: { allowFail?: boolean } = {},
-): Promise<GitResult> {
+export async function git(args: string[], opts: { allowFail?: boolean } = {}): Promise<GitResult> {
   try {
     const r = await execa("git", args, { reject: !opts.allowFail });
     return { stdout: r.stdout, stderr: r.stderr, exitCode: r.exitCode ?? 0 };
@@ -52,7 +51,10 @@ export async function hasUnstagedChanges(): Promise<boolean> {
 
 export async function localBranches(): Promise<string[]> {
   const r = await git(["for-each-ref", "--format=%(refname:short)", "refs/heads/"]);
-  return r.stdout.split("\n").map((s) => s.trim()).filter(Boolean);
+  return r.stdout
+    .split("\n")
+    .map((s) => s.trim())
+    .filter(Boolean);
 }
 
 export async function branchExists(name: string): Promise<boolean> {
@@ -120,10 +122,7 @@ export function gitFetch(args: string[]): Promise<{ exitCode: number; stderr: st
 }
 
 export async function upstreamOf(branch: string): Promise<string | null> {
-  const r = await git(
-    ["rev-parse", "--abbrev-ref", "--symbolic-full-name", `${branch}@{u}`],
-    { allowFail: true },
-  );
+  const r = await git(["rev-parse", "--abbrev-ref", "--symbolic-full-name", `${branch}@{u}`], { allowFail: true });
   if (r.exitCode !== 0) return null;
   return r.stdout.trim() || null;
 }

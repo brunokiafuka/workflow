@@ -1,4 +1,5 @@
 import { cliui } from "@poppinss/cliui";
+
 import { branchExists, currentBranch, git } from "../git.js";
 import { detectTrunk } from "../trunk.js";
 import { conflictHint, fail, success } from "../ui.js";

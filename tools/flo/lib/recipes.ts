@@ -1,6 +1,8 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+
 import YAML from "yaml";
+
 import { git } from "./git.js";
 
 export type Recipe = {
@@ -55,10 +57,7 @@ export function parseRecipes(raw: string, path: string): RecipesFile {
     commands?: unknown;
     init?: unknown;
   };
-  const rawCommands =
-    doc.commands && typeof doc.commands === "object"
-      ? (doc.commands as Record<string, unknown>)
-      : {};
+  const rawCommands = doc.commands && typeof doc.commands === "object" ? (doc.commands as Record<string, unknown>) : {};
 
   const commands: Record<string, Recipe> = {};
   const aliasOwner = new Map<string, string>();
@@ -79,33 +78,23 @@ export function parseRecipes(raw: string, path: string): RecipesFile {
     const aliases = Array.isArray(entry.aliases)
       ? entry.aliases.filter((a): a is string => typeof a === "string" && a.length > 0)
       : [];
-    if (
-      entry.interactive !== undefined &&
-      typeof entry.interactive !== "boolean"
-    ) {
-      throw new Error(
-        `${path}: commands.${name}.interactive must be a boolean`,
-      );
+    if (entry.interactive !== undefined && typeof entry.interactive !== "boolean") {
+      throw new Error(`${path}: commands.${name}.interactive must be a boolean`);
     }
     for (const alias of aliases) {
       const owner = aliasOwner.get(alias);
       if (owner && owner !== name) {
-        throw new Error(
-          `${path}: alias "${alias}" is defined on both "${owner}" and "${name}"`,
-        );
+        throw new Error(`${path}: alias "${alias}" is defined on both "${owner}" and "${name}"`);
       }
       if (rawCommands[alias] && alias !== name) {
-        throw new Error(
-          `${path}: alias "${alias}" on "${name}" shadows another command`,
-        );
+        throw new Error(`${path}: alias "${alias}" on "${name}" shadows another command`);
       }
       aliasOwner.set(alias, name);
     }
     commands[name] = {
       name,
       command: entry.command.trim(),
-      description:
-        typeof entry.description === "string" ? entry.description.trim() || undefined : undefined,
+      description: typeof entry.description === "string" ? entry.description.trim() || undefined : undefined,
       aliases,
       interactive: entry.interactive === true,
     };
@@ -135,9 +124,7 @@ function parseInit(raw: unknown, path: string): InitStep[] {
     }
     const keys = Object.keys(item as Record<string, unknown>);
     if (keys.length !== 1) {
-      throw new Error(
-        `${path}: init[${i}] must have exactly one step id as key (got ${keys.length})`,
-      );
+      throw new Error(`${path}: init[${i}] must have exactly one step id as key (got ${keys.length})`);
     }
     const id = keys[0];
     if (seen.has(id)) {
@@ -152,8 +139,7 @@ function parseInit(raw: unknown, path: string): InitStep[] {
     if (typeof e.run !== "string" || !e.run.trim()) {
       throw new Error(`${path}: init step "${id}".run is required (string)`);
     }
-    const displayName =
-      typeof e.name === "string" && e.name.trim() ? e.name.trim() : id;
+    const displayName = typeof e.name === "string" && e.name.trim() ? e.name.trim() : id;
     steps.push({ id, name: displayName, run: e.run.trim() });
   }
   return steps;

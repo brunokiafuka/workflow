@@ -1,6 +1,7 @@
 import { strict as assert } from "node:assert";
 import { homedir } from "node:os";
 import { describe, test } from "node:test";
+
 import { displayPath, renderBranchName, type ResolvedConfig } from "../config.js";
 
 const cfg = (template: string, user = "bk"): ResolvedConfig => ({
@@ -13,10 +14,7 @@ const cfg = (template: string, user = "bk"): ResolvedConfig => ({
 
 describe("renderBranchName", () => {
   test("substitutes {user} and {slug}", () => {
-    assert.equal(
-      renderBranchName(cfg("{user}/{slug}"), "add_feature"),
-      "bk/add_feature",
-    );
+    assert.equal(renderBranchName(cfg("{user}/{slug}"), "add_feature"), "bk/add_feature");
   });
 
   test("slug-only template leaves user out", () => {
@@ -24,24 +22,15 @@ describe("renderBranchName", () => {
   });
 
   test("collapses empty slash segments when user is empty", () => {
-    assert.equal(
-      renderBranchName(cfg("{user}/{slug}", ""), "thing"),
-      "thing",
-    );
+    assert.equal(renderBranchName(cfg("{user}/{slug}", ""), "thing"), "thing");
   });
 
   test("collapses doubled underscores from empty tokens", () => {
-    assert.equal(
-      renderBranchName(cfg("{user}_{slug}", ""), "thing"),
-      "thing",
-    );
+    assert.equal(renderBranchName(cfg("{user}_{slug}", ""), "thing"), "thing");
   });
 
   test("strips leading/trailing separators", () => {
-    assert.equal(
-      renderBranchName(cfg("/{slug}/", ""), "thing"),
-      "thing",
-    );
+    assert.equal(renderBranchName(cfg("/{slug}/", ""), "thing"), "thing");
   });
 
   test("falls back to slug when template renders empty", () => {
@@ -50,35 +39,23 @@ describe("renderBranchName", () => {
   });
 
   test("preserves custom literal separators", () => {
-    assert.equal(
-      renderBranchName(cfg("{user}-{slug}"), "thing"),
-      "bk-thing",
-    );
+    assert.equal(renderBranchName(cfg("{user}-{slug}"), "thing"), "bk-thing");
   });
 
   test("handles nested group-style prefix", () => {
-    assert.equal(
-      renderBranchName(cfg("team/{user}/{slug}"), "thing"),
-      "team/bk/thing",
-    );
+    assert.equal(renderBranchName(cfg("team/{user}/{slug}"), "thing"), "team/bk/thing");
   });
 
   test("escapes nothing — slug is passed through as-is", () => {
     // renderBranchName doesn't slugify; that's the caller's job.
-    assert.equal(
-      renderBranchName(cfg("{slug}"), "Already Slugged"),
-      "Already Slugged",
-    );
+    assert.equal(renderBranchName(cfg("{slug}"), "Already Slugged"), "Already Slugged");
   });
 });
 
 describe("displayPath", () => {
   test("collapses $HOME to ~", () => {
     const home = homedir();
-    assert.equal(
-      displayPath(`${home}/.flo/projects/foo`),
-      "~/.flo/projects/foo",
-    );
+    assert.equal(displayPath(`${home}/.flo/projects/foo`), "~/.flo/projects/foo");
   });
 
   test("leaves non-home paths untouched", () => {

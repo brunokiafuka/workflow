@@ -1,5 +1,6 @@
 import { homedir } from "node:os";
 import { basename, join } from "node:path";
+
 import { git } from "./git.js";
 
 export type SlotInfo = {

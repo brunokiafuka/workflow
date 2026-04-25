@@ -1,5 +1,6 @@
 import { cliui } from "@poppinss/cliui";
 import { execa } from "execa";
+
 import { currentBranch, git, gitInherit } from "../git.js";
 import { detectTrunk } from "../trunk.js";
 import { colors, fail, info, success } from "../ui.js";
@@ -43,9 +44,7 @@ export async function diffCommand(rawFlags: string[]): Promise<void> {
       return summary || `${commits} commit${commits !== 1 ? "s" : ""}`;
     })
     .addIf(copy, "Capturing diff", async (task) => {
-      const args = branch === trunk
-        ? ["diff", ...flags]
-        : ["diff", `${trunk}...HEAD`, ...flags];
+      const args = branch === trunk ? ["diff", ...flags] : ["diff", `${trunk}...HEAD`, ...flags];
       const r = await git(args, { allowFail: true });
       copyBody = r.stdout;
       return `${copyBody.split("\n").length} lines`;

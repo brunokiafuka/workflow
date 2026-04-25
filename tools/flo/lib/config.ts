@@ -1,7 +1,9 @@
 import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
+
 import YAML from "yaml";
+
 import { git } from "./git.js";
 import { resolveSlot, type SlotInfo } from "./slot.js";
 
@@ -72,9 +74,7 @@ async function loadSlotConfig(slot: SlotInfo): Promise<FloConfig | null> {
     const parsed = YAML.parse(raw);
     return (parsed ?? {}) as FloConfig;
   } catch (e) {
-    throw new Error(
-      `Couldn't parse ${displayPath(slot.configPath)}: ${(e as Error).message}`,
-    );
+    throw new Error(`Couldn't parse ${displayPath(slot.configPath)}: ${(e as Error).message}`);
   }
 }
 
@@ -82,10 +82,7 @@ type LegacyHit = { cfg: FloConfig; path: string };
 
 async function loadLegacyConfig(): Promise<LegacyHit | null> {
   const root = await repoRoot();
-  const candidates = [
-    join(root, LEGACY_DIR, LEGACY_JSON_FILENAME),
-    join(root, LEGACY_FLAT_FILE),
-  ];
+  const candidates = [join(root, LEGACY_DIR, LEGACY_JSON_FILENAME), join(root, LEGACY_FLAT_FILE)];
   for (const path of candidates) {
     const raw = await readIfExists(path);
     if (raw === null) continue;
@@ -140,7 +137,12 @@ async function gitUserShort(): Promise<string> {
   const r = await git(["config", "--get", "user.email"], { allowFail: true });
   const email = r.stdout.trim();
   if (!email) return "";
-  return email.split("@")[0]?.replace(/[^a-z0-9]/gi, "").toLowerCase() ?? "";
+  return (
+    email
+      .split("@")[0]
+      ?.replace(/[^a-z0-9]/gi, "")
+      .toLowerCase() ?? ""
+  );
 }
 
 export async function resolveConfig(): Promise<ResolvedConfig> {
@@ -148,7 +150,7 @@ export async function resolveConfig(): Promise<ResolvedConfig> {
   const slotCfg = await loadSlotConfig(slot);
   const legacy = slotCfg ? null : await loadLegacyConfig();
   const cfg = slotCfg ?? legacy?.cfg ?? null;
-  const sourcePath = slotCfg ? slot.configPath : legacy?.path ?? slot.configPath;
+  const sourcePath = slotCfg ? slot.configPath : (legacy?.path ?? slot.configPath);
   const fallbackUser = cfg?.branch?.user ?? (await gitUserShort());
   return {
     trunk: cfg?.trunk ?? null,
