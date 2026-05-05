@@ -1,20 +1,22 @@
-# `flo` — command reference
+---
+title: Commands
+description: Every flo command, its flags, and behavior notes.
+---
 
 `flo` is your local flow orchestrator — git, PRs, and project recipes in one tool. It wraps the handful of git invocations you'd otherwise type a hundred times a day, with safer defaults and friendlier output.
 
 - [`flo setup`](#flo-setup) — configure your per-dev settings for this repo (supports `--update` to tweak a single field)
 - [`flo sync`](#flo-sync) — fetch, prune merged branches, restack
 - [`flo checkout`](#flo-checkout) — pick a branch from a graph view
-- [`flo get`](#flo-get) — fetch + checkout a remote branch
-- [`flo restack`](#flo-restack) — rebase a branch onto trunk
+- [`flo get`](#flo-get-target) — fetch + checkout a remote branch
+- [`flo restack`](#flo-restack-branch) — rebase a branch onto trunk
 - [`flo add`](#flo-add) — stage everything
 - [`flo commit`](#flo-commit) — create a commit
 - [`flo modify`](#flo-modify) — amend (or create) a commit
 - [`flo push`](#flo-push) — push with `--force-with-lease`
 - [`flo submit`](#flo-submit) — push and open/update a PR (draft or ready-for-review, per `pr.mode`)
-- [`flo run`](#flo-run) — run a project command defined in `flo.yml`
+- [`flo run`](#flo-run-name-args) — run a project command defined in `flo.yml`
 - [`flo init`](#flo-init) — run the bootstrap steps in `flo.yml`
-- [Update check](#update-check) — automatic "new version available" notice after commands run
 
 ---
 
@@ -24,8 +26,8 @@ Interactive setup: writes a YAML config with your trunk branch, an optional bran
 
 **Flags**
 
-| Flag | What |
-| ---- | ---- |
+| Flag           | What                                                                                |
+| -------------- | ----------------------------------------------------------------------------------- |
 | `-u, --update` | Skip the overwrite/update chooser and go straight to picking which fields to tweak. |
 
 **What it asks**
@@ -59,10 +61,10 @@ Interactive setup: writes a YAML config with your trunk branch, an optional bran
 ```yaml
 trunk: main
 branch:
-  template: "{user}/{slug}"   # or "{slug}" when no prefix
-  user: bk                    # omitted when no prefix
+  template: "{user}/{slug}" # or "{slug}" when no prefix
+  user: bk # omitted when no prefix
 pr:
-  mode: draft                 # or "open"
+  mode: draft # or "open"
 ```
 
 Setup only writes the two template shapes above (`{user}/{slug}` and `{slug}`). The tokens are an implementation detail — `{user}` expands to `branch.user`, `{slug}` to a slugified commit subject (lowercase, spaces → `_`, git-invalid chars stripped, 60 chars max). Power users can hand-edit the YAML for other patterns like `"{user}-{slug}"`; the UI never exposes the tokens.
@@ -73,11 +75,11 @@ The template is applied wherever flo suggests a branch name (currently: the trun
 
 When a config already exists, `flo setup` prints the current values and offers three choices:
 
-| Choice | What |
-| ------ | ---- |
+| Choice                       | What                                                                                                                  |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------- |
 | **Update specific settings** | Checkbox picker: trunk, branch prefix, PR mode. Only the chosen fields are re-prompted; everything else is preserved. |
-| **Overwrite from scratch** | Walks the full wizard again, pre-filled from the existing config. |
-| **Cancel** | Bail out without writing. |
+| **Overwrite from scratch**   | Walks the full wizard again, pre-filled from the existing config.                                                     |
+| **Cancel**                   | Bail out without writing.                                                                                             |
 
 `flo setup --update` skips the chooser and jumps straight to the field picker — useful for quick one-off tweaks (`flo setup --update` → pick PR mode → pick `open`).
 
@@ -87,13 +89,13 @@ When a config already exists, `flo setup` prints the current values and offers t
 
 flo derives the slot from your `origin` remote. SSH and HTTPS forms of the same remote resolve to the **same slot** — re-cloning with a different URL scheme keeps your config.
 
-| Origin URL | Slot |
-| ---------- | ---- |
-| `git@github.com:owner/repo.git` | `~/.flo/projects/github.com/owner/repo/` |
-| `https://github.com/owner/repo.git` | `~/.flo/projects/github.com/owner/repo/` |
-| `ssh://git@github.com/owner/repo` | `~/.flo/projects/github.com/owner/repo/` |
-| `https://gitlab.com/group/sub/repo` | `~/.flo/projects/gitlab.com/group/sub/repo/` |
-| (no `origin` remote) | `~/.flo/projects/_local/<dirname>/` — setup warns when this fallback is used |
+| Origin URL                          | Slot                                                                         |
+| ----------------------------------- | ---------------------------------------------------------------------------- |
+| `git@github.com:owner/repo.git`     | `~/.flo/projects/github.com/owner/repo/`                                     |
+| `https://github.com/owner/repo.git` | `~/.flo/projects/github.com/owner/repo/`                                     |
+| `ssh://git@github.com/owner/repo`   | `~/.flo/projects/github.com/owner/repo/`                                     |
+| `https://gitlab.com/group/sub/repo` | `~/.flo/projects/gitlab.com/group/sub/repo/`                                 |
+| (no `origin` remote)                | `~/.flo/projects/_local/<dirname>/` — setup warns when this fallback is used |
 
 Normalization: lowercase the host, strip `www.`, strip trailing `.git` / `/`. Unusual URL shapes (empty paths, `..` segments) fall back to the `_local/` slot.
 
@@ -192,10 +194,10 @@ Creates a new commit on the current branch.
 
 **Flags**
 
-| Flag | What |
-| ---- | ---- |
+| Flag                  | What                                |
+| --------------------- | ----------------------------------- |
 | `-m, --message <msg>` | commit message (prompts if omitted) |
-| `-a, --all` | stage all changes first |
+| `-a, --all`           | stage all changes first             |
 
 **Trunk guard.** If you run `flo commit` while on `main`/`master`, flo first collects the commit message, then prompts for a new branch name — prefilled with a slug derived from the message (spaces → `_`, invalid chars stripped, capped at 60 chars). You can edit the suggestion or accept it. flo then runs `git checkout -b <name>` before the commit, so your work never lands directly on trunk.
 
@@ -207,12 +209,12 @@ Amend (or create) a commit on the current branch.
 
 **Flags**
 
-| Flag | What |
-| ---- | ---- |
-| `-m, --message <msg>` | amend with a new message |
-| `-a, --all` | stage all changes first |
-| `-c, --commit` | create a new commit instead of amending |
-| `-e, --edit` | open the editor for the amended message |
+| Flag                  | What                                    |
+| --------------------- | --------------------------------------- |
+| `-m, --message <msg>` | amend with a new message                |
+| `-a, --all`           | stage all changes first                 |
+| `-c, --commit`        | create a new commit instead of amending |
+| `-e, --edit`          | open the editor for the amended message |
 
 **No-own-commits fallback.** If the branch has no commits of its own yet (trunk..HEAD count is 0), amending would rewrite trunk's HEAD — so flo silently falls through to creating a new commit instead. The trunk guard from `flo commit` also applies here.
 
@@ -232,10 +234,10 @@ Pushes and opens (or updates) a PR for the current branch. Requires the [`gh`](h
 
 **Status detection**
 
-| Status | When |
-| ------ | ---- |
-| `(new)` | no PR exists for this branch yet |
-| `(update)` | PR exists and you have commits to push |
+| Status        | When                                    |
+| ------------- | --------------------------------------- |
+| `(new)`       | no PR exists for this branch yet        |
+| `(update)`    | PR exists and you have commits to push  |
 | `(no update)` | PR exists and local HEAD == remote HEAD |
 
 **Flow**
@@ -262,7 +264,7 @@ The task label matches the mode — `opening draft PR` for `draft`, `opening PR`
 
 Runs a project command defined in **`flo.yml`** at the repo root. Output streams live inside a bordered panel with a status footer (exit code + duration).
 
-For the full `flo.yml` schema (fields, aliases, validation errors, patterns) see **[Per-project customization](./customization.md)**.
+For the full `flo.yml` schema (fields, aliases, validation errors) see **[Configuration](./configuration.md)**.
 
 **Invocation**
 
@@ -287,7 +289,7 @@ Built-ins always win at the top level — define a recipe called `commit` and yo
 
 Non-zero exit shows a red `✗` footer with the exit code, and `flo` exits with the same code.
 
-**Interactive recipes.** Set `interactive: true` on a recipe when the command needs to prompt the user (release scripts, `gh auth login`, etc.). Flo inherits stdio instead of buffering, so prompts and live output reach the terminal directly. Default behavior stays the same for non-interactive recipes. See [Per-project customization → `commands`](./customization.md#commands).
+**Interactive recipes.** Set `interactive: true` on a recipe when the command needs to prompt the user (release scripts, `gh auth login`, etc.). Flo inherits stdio instead of buffering, so prompts and live output reach the terminal directly. Default behavior stays the same for non-interactive recipes. See [Configuration → `commands`](./configuration.md#commands).
 
 `flo run` does not require `flo setup` — recipes are independent of trunk/user config.
 
@@ -297,7 +299,7 @@ Non-zero exit shows a red `✗` footer with the exit code, and `flo` exits with 
 
 Runs the `init:` steps in `flo.yml` in declared order. Designed for post-clone bootstrap — install deps, run migrations, seed data.
 
-For the `init:` schema (step shape, required/optional fields, validation errors) see **[Per-project customization → `init`](./customization.md#init)**.
+For the `init:` schema (step shape, required/optional fields, validation errors) see **[Configuration → `init`](./configuration.md#init)**.
 
 **Behavior**
 
@@ -328,15 +330,3 @@ For the `init:` schema (step shape, required/optional fields, validation errors)
 ```
 
 On failure: `✗ <step> failed in Xs (exit N) — stopping` followed by `N/M steps completed before failure`.
-
----
-
-## Update check
-
-Every TTY command other than `flo setup` and `flo --help` ends with a one-line notice when a newer version has landed on `main`:
-
-```
-↑ flo 0.3.0 is available (you have 0.2.0). Run `brew upgrade flo` to update.
-```
-
-Cached for 12h in `~/.flo/update-check.json`, silent on network failure, opt out with `FLO_NO_UPDATE_CHECK=1`. See [Installation & releases → Update check](./installation.md#update-check) for the full flow.

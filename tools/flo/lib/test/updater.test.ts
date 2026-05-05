@@ -67,8 +67,8 @@ describe("detectInstallSource", () => {
   });
 
   test("treats anything else with a path as a git checkout", () => {
-    assert.equal(detectInstallSource("/Users/bk/code/workflow/tools/flo"), "git");
-    assert.equal(detectInstallSource("/home/alice/workflow/tools/flo"), "git");
+    assert.equal(detectInstallSource("/Users/bk/code/flo/tools/flo"), "git");
+    assert.equal(detectInstallSource("/home/alice/flo/tools/flo"), "git");
   });
 
   test("returns unknown for an empty path", () => {
@@ -82,7 +82,7 @@ describe("updateHint", () => {
   });
 
   test("git source suggests a pull + reinstall, with cd when repo root is known", () => {
-    assert.equal(updateHint("git", "/Users/bk/workflow"), "cd /Users/bk/workflow && git pull && ./tools/flo/install");
+    assert.equal(updateHint("git", "/Users/bk/flo"), "cd /Users/bk/flo && git pull && ./tools/flo/install");
     assert.equal(updateHint("git"), "git pull && ./tools/flo/install");
   });
 

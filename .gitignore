@@ -7,3 +7,7 @@ node_modules
 
 oxlint.log
 oxfmt.log
+
+# Astro / Starlight build output
+docs/dist/
+docs/.astro/

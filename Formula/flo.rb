@@ -1,7 +1,7 @@
 class Flo < Formula
   desc "Local git workflow helper (graphite-style)"
-  homepage "https://github.com/brunokiafuka/workflow"
-  head "https://github.com/brunokiafuka/workflow.git", branch: "main"
+  homepage "https://github.com/brunokiafuka/flo"
+  head "https://github.com/brunokiafuka/flo.git", branch: "main"
 
   depends_on "node"
 
