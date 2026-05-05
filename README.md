@@ -14,11 +14,11 @@
 ## Install
 
 ```bash
-brew tap brunokiafuka/workflow https://github.com/brunokiafuka/workflow
+brew tap brunokiafuka/flo https://github.com/brunokiafuka/flo
 brew install --HEAD flo
 ```
 
-For versioned installs and release flow, see [`docs/flo/installation.md`](docs/flo/installation.md).
+For versioned installs and the release flow, see the [contributing guide](https://brunokiafuka.github.io/flo/contributing/guide/).
 
 ## Quickstart
 
@@ -34,9 +34,13 @@ flo <recipe>            # run a project command defined in flo.yml
 
 ## Docs
 
-- **[Command reference](docs/flo/commands.md)** — every command, flags, and behavior notes
-- **[Per-project customization](docs/flo/customization.md)** — `flo.yml` schema: recipes, init steps, patterns
-- **[Installation & releases](docs/flo/installation.md)** — Homebrew install, local dev install, release flow
+Live at **<https://brunokiafuka.github.io/flo/>** (built with [Starlight](https://starlight.astro.build/), source under [`docs/`](docs/)).
+
+- **[Quickstart](https://brunokiafuka.github.io/flo/get-started/quickstart/)** — install, first-run setup, a typical loop
+- **[Command reference](https://brunokiafuka.github.io/flo/reference/commands/)** — every command, flags, and behavior notes
+- **[Configuration](https://brunokiafuka.github.io/flo/reference/configuration/)** — `flo.yml` schema: commands, init steps, validation
+- **[Recipes](https://brunokiafuka.github.io/flo/reference/recipes/)** — ready-made `flo.yml` patterns
+- **[Contributing guide](https://brunokiafuka.github.io/flo/contributing/guide/)** — local dev, tests, release flow
 
 ## Local dev
 
@@ -51,11 +55,10 @@ pnpm run install:flo    # symlinks ~/.local/bin/flo
 ./
 ├── tools/
 │   └── flo/         # the tool — self-contained, owns its deps
-├── docs/
-│   └── flo/         # commands, customization, installation
+├── docs/            # Starlight site (deploys to GitHub Pages)
 ├── Formula/
 │   └── flo.rb       # Homebrew formula
-└── package.json     # pnpm workspace root (tools/*)
+└── package.json     # pnpm workspace root (tools/*, docs)
 ```
 
 The repo is a pnpm workspace shaped for one tool today — extra `tools/<name>` slots stay open for whatever lands next.

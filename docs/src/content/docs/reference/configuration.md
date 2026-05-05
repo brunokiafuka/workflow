@@ -1,8 +1,11 @@
-# `flo` — per-project customization (`flo.yml`)
+---
+title: Configuration
+description: The flo.yml schema — recipes, init steps, and validation rules.
+---
 
 Every repo can ship a **`flo.yml`** at its root to declare project-specific commands and a bootstrap sequence. The file is committed alongside the code so the same `flo test` / `flo init` works from any fresh clone.
 
-See [`commands.md`](./commands.md) for how the commands are invoked; this doc covers the schema.
+For ready-made templates, see **[Recipes](./recipes.md)**. For how the commands are invoked, see **[Commands → `flo run`](./commands.md#flo-run-name-args)**.
 
 ```yaml
 # flo.yml — lives at the repo root
@@ -130,61 +133,8 @@ All errors include the absolute path to the offending `flo.yml`.
 
 ---
 
-## Patterns
-
-**A single recipe that chains multiple commands**
-
-```yaml
-commands:
-  ship:
-    description: Lint, test, push
-    command: pnpm lint && pnpm --filter flo test && flo submit
-```
-
-**An interactive release / setup script**
-
-```yaml
-commands:
-  release-flo:
-    description: Bump version, commit, push to main
-    command: sh scripts/release.sh
-    aliases: [fr]
-    interactive: true
-```
-
-Without `interactive: true`, `flo run` would capture the script's output in a boxed panel and silently drop any prompts. With it on, the child sees your TTY directly.
-
-**Per-workspace tests in a monorepo**
-
-```yaml
-commands:
-  test-flo:
-    command: pnpm --filter flo test
-    aliases: [tf]
-  test-all:
-    command: pnpm -r test
-    aliases: [ta]
-```
-
-**Bootstrap that sets up local tooling**
-
-```yaml
-init:
-  - deps:
-      name: Install dependencies
-      run: pnpm install
-  - hooks:
-      name: Install git hooks
-      run: pnpm --filter flo exec install-hooks
-  - env-file:
-      name: Create .env from template
-      run: "[ -f .env ] || cp .env.example .env"
-```
-
----
-
 ## Why `flo.yml` (and not `.flo/config.json`)
 
 `flo.yml` is the **project-facing, committed** file — team-visible recipes and bootstrap. It lives at the repo root alongside `package.json` / `Makefile`.
 
-Personal, per-developer flo settings (trunk override, branch prefix) live in a separate **user-level** file outside the repo — see [`commands.md` → `flo setup`](./commands.md#flo-setup). The two files are independent: `flo run` does not require `flo setup`, and vice versa.
+Personal, per-developer flo settings (trunk override, branch prefix) live in a separate **user-level** file outside the repo — see [Commands → `flo setup`](./commands.md#flo-setup). The two files are independent: `flo run` does not require `flo setup`, and vice versa.

@@ -7,9 +7,13 @@ https://github.com/user-attachments/assets/6df2fbfa-568d-489e-a2a3-5156945488a5
 
 ## Docs
 
-- **[Installation & releases](../../docs/flo/installation.md)** — Homebrew install, local dev install, release flow
-- **[Command reference](../../docs/flo/commands.md)** — every command, flags, and behavior notes
-- **[Per-project customization](../../docs/flo/customization.md)** — the `flo.yml` schema: recipes, init steps, patterns
+Live at **<https://brunokiafuka.github.io/flo/>**.
+
+- **[Quickstart](https://brunokiafuka.github.io/flo/get-started/quickstart/)** — install + first-run setup
+- **[Command reference](https://brunokiafuka.github.io/flo/reference/commands/)** — every command, flags, and behavior notes
+- **[Configuration](https://brunokiafuka.github.io/flo/reference/configuration/)** — the `flo.yml` schema
+- **[Recipes](https://brunokiafuka.github.io/flo/reference/recipes/)** — ready-made `flo.yml` patterns
+- **[Contributing guide](https://brunokiafuka.github.io/flo/contributing/guide/)** — local dev + release flow
 
 ## Quickstart
 

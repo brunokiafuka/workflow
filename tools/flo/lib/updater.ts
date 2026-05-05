@@ -10,7 +10,7 @@ const CHECK_TTL_MS = 12 * 60 * 60 * 1000; // 12h
 const FETCH_TIMEOUT_MS = 2500;
 // Source of truth: the version field of package.json on main. A "release" is
 // just bumping this field and merging — no git tag or GitHub Release needed.
-const REMOTE_PKG_URL = "https://raw.githubusercontent.com/brunokiafuka/workflow/main/tools/flo/package.json";
+const REMOTE_PKG_URL = "https://raw.githubusercontent.com/brunokiafuka/flo/main/tools/flo/package.json";
 
 export type UpdateCache = {
   checkedAt: number;

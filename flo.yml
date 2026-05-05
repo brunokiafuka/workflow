@@ -23,3 +23,8 @@ commands:
     command: sh scripts/release.sh
     aliases: [fr]
     interactive: true
+  dev-docs:
+    description: Build and deploy the docs
+    command: pnpm --filter docs dev
+    aliases: [dd]
+    interactive: true
