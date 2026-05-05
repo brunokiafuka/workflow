@@ -1,6 +1,4 @@
-<p align="center">
-  <img src="docs/assets/avatar.jpg" alt="bk" width="160" />
-</p>
+<h1 align="center" style="font-size: 6em; margin: 0;">🌊</h1>
 
 <h1 align="center">flo</h1>
 
